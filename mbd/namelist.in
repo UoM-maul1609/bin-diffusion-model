@@ -1,0 +1,16 @@
+ &run_vars
+	nmd%outputfile = '/tmp/output.nc',
+	nmd%kp=1000,
+	nmd%runtime=1000.,
+	nmd%dt=10.,
+	nmd%rad=100.e-9,
+	nmd%rad_min=1.e-9,
+	nmd%rad_max=5.e-2,
+	nmd%t=298.,
+	nmd%p=100000.,
+	nmd%rh=0.8,
+	nmd%mwsol=200.e-3,
+	nmd%rhosol=1500.,
+	nmd%d_coeff=1.e-17/
+
+	
