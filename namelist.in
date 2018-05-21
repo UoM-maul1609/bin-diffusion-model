@@ -1,6 +1,6 @@
  &run_vars
 	outputfile = '/tmp/output1.nc',
-	bin_model_file = 'bmm/namelist.in',
+	bin_model_file = 'bmm/namelist.basic',
 	diffusion_model_file = 'mbd/namelist.in',
 	koehler_shell_flag=1/
  
