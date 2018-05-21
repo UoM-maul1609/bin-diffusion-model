@@ -18,9 +18,10 @@
     type grid
     
         ! variables for grid
-        integer(i4b) :: kp, ntim, kp_cur
-        real(sp) :: dt,rad,t,p,rh,mwsol,rhosol,d_coeff,da_dt
-        real(sp), dimension(:), allocatable :: r,u,r05,d,d05, dr,dr05, vol
+        integer(i4b) :: kp, ntim, kp_cur, kp_cur_old
+        real(sp) :: dt,rad,t,p,rh,mwsol,rhosol,d_coeff,da_dt, rad_old, rad_min,rad_max
+        real(sp), dimension(:), allocatable :: r,u,r05,d,d05, dr,dr05, vol, vol_old, &
+                    r_old, r05_old, dr_old, dr05_old
         real(sp), dimension(:,:), allocatable :: c, cold
                                                  
     end type grid
@@ -68,7 +69,7 @@
 
     private
     public :: backward_euler, move_boundary, allocate_and_set_diff, diffusion_driver, &
-        gridd, nmd,iod
+        gridd, nmd,iod, grid
     contains
        
 	!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -78,6 +79,7 @@
 	!>solves one step using backward euler method
 	!>@param[inout] kp: number of grid points
 	!>@param[inout] kpp: number of grid points to solve over
+	!>@param[inout] dt: time-step
 	!>@param[inout] r: radius array
 	!>@param[inout] r05: radius array - half levels
 	!>@param[inout] u: velocity of boundary
@@ -93,7 +95,8 @@
         use nr, only : tridag
         implicit none
 		integer(i4b), intent(in) :: kp, kpp
-		real(sp), intent(inout) :: dt, flux
+		real(sp), intent(inout) :: flux
+		real(sp), intent(in) :: dt
 
 		real(sp), intent(inout), dimension(0:kp+1) :: r, r05, u, d, d05, &
 		                                                    dr, dr05
@@ -154,8 +157,8 @@
 		use nr, only : locate
         implicit none
 		integer(i4b), intent(inout) :: kp, kp_cur
-		real(sp), intent(inout) :: dt, radiusold, radius, flux, mwsol, rhosol
-		real(sp), intent(in) :: rad_min,rad_max, deltaV
+		real(sp), intent(inout) :: radiusold, radius, flux, mwsol, rhosol
+		real(sp), intent(in) :: dt,rad_min,rad_max, deltaV
 
 		real(sp), intent(inout), dimension(0:kp+1) :: r, r05, u,dr, dr05
 		real(sp), intent(inout), dimension(1:kp) :: vol
@@ -415,28 +418,30 @@
 	!>@param[inout] kp, kp_cur: number of grid points, where to solve
 	!>@param[inout] ntim: number of time levels
 	!>@param[inout] rad: radius of particle
+	!>@param[inout] rad_min: min radius of particle
+	!>@param[inout] rad_max: max radius of particle
 	!>@param[inout] t: temperaturepressurenumber of grid points
 	!>@param[inout] rh: rh
 	!>@param[inout] mwsol: molecular weight of solute
 	!>@param[inout] rhosol: density of solute
 	!>@param[inout] d_coeff: diffusion coefficient
-	!>@param[inout] r: radius array
-	!>@param[inout] r05: radius array - half levels
+	!>@param[inout] r, r_old: radius array
+	!>@param[inout] r05, r05_old: radius array - half levels
 	!>@param[inout] u: velocity of boundary
 	!>@param[inout] d: diffusion coefficient
 	!>@param[inout] d05: ditto - half levels
-	!>@param[inout] dr: grid spacing array
-	!>@param[inout] dr05: grid spacing array - half levels
-	!>@param[inout] vol: volume of shell
+	!>@param[inout] dr, dr_old: grid spacing array
+	!>@param[inout] dr05, dr05_old: grid spacing array - half levels
+	!>@param[inout] vol, vol_old: volume of shell
 	!>@param[inout] c: concentration array
 	!>@param[inout] cold: old concentration array
 	subroutine allocate_and_set_diff(nm_kp,nm_dt,nm_runtime,nm_rad, &
 	        nm_rad_min, nm_rad_max, nm_t,nm_p,&
 	         nm_rh, nm_mwsol, &
             nm_rhosol, nm_d_coeff, &
-            kp,kp_cur,ntim,dt, rad,t,p,rh, &
-            mwsol,rhosol,d_coeff,r,r05, &
-            u,d,d05,dr,dr05,vol,c,cold)
+            kp,kp_cur,ntim,dt, rad,rad_min,rad_max,t,p,rh, &
+            mwsol,rhosol,d_coeff,r,r_old,r05,r05_old, &
+            u,d,d05,dr,dr_old,dr05,dr05_old,vol,vol_old, c,cold)
 		use nrtype
 		use nr, only : locate
 		implicit none
@@ -445,9 +450,12 @@
 		                        nm_rad_min, nm_rad_max, nm_t,nm_p,nm_rh,&
 		                        nm_mwsol,nm_rhosol,nm_d_coeff
 		integer(i4b), intent(inout) :: kp,kp_cur, ntim
-		real(sp), intent(inout) :: dt,rad,t,p,rh,mwsol,rhosol,d_coeff
+		real(sp), intent(inout) :: dt,rad,t,p,rh,mwsol,rhosol,d_coeff, &
+		            rad_min,rad_max
 		real(sp), intent(inout), dimension(:), allocatable :: r, r05, u, d, d05, &
-		                                                    dr, dr05, vol
+		                                                    dr, dr05, vol, vol_old, &
+		                                                    r_old, r05_old, dr_old, &
+		                                                    dr05_old
 		real(sp), intent(inout), dimension(:,:), allocatable :: c, cold
 		
 		integer(i4b) :: AllocateStatus, i
@@ -468,6 +476,8 @@
         mwsol=nm_mwsol
         rhosol=nm_rhosol
         d_coeff=nm_d_coeff
+        rad_min=nm_rad_min
+        rad_max=nm_rad_max
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -490,6 +500,17 @@
         allocate( vol(1:kp), STAT = AllocateStatus)
         if (AllocateStatus /= 0) STOP "*** Not enough memory ***"        
 
+        allocate( r_old(0:kp+1), STAT = AllocateStatus)
+        if (AllocateStatus /= 0) STOP "*** Not enough memory ***"        
+        allocate( r05_old(0:kp+1), STAT = AllocateStatus)
+        if (AllocateStatus /= 0) STOP "*** Not enough memory ***"        
+        allocate( dr_old(0:kp+1), STAT = AllocateStatus)
+        if (AllocateStatus /= 0) STOP "*** Not enough memory ***"        
+        allocate( dr05_old(0:kp+1), STAT = AllocateStatus)
+        if (AllocateStatus /= 0) STOP "*** Not enough memory ***"        
+        allocate( vol_old(1:kp), STAT = AllocateStatus)
+        if (AllocateStatus /= 0) STOP "*** Not enough memory ***"        
+
         allocate( c(1:kp+1,1:2), STAT = AllocateStatus)
         if (AllocateStatus /= 0) STOP "*** Not enough memory ***"        
         allocate( cold(1:kp+1,1:2), STAT = AllocateStatus)
@@ -500,7 +521,6 @@
         allocate( na(1:kp), STAT = AllocateStatus)
         if (AllocateStatus /= 0) STOP "*** Not enough memory ***"        
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
 
         call set_nodes(kp,kp_cur,rad,nm_rad_min, nm_rad_max,r,r05,dr,dr05,vol,c)
 

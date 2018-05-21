@@ -2,7 +2,7 @@
 	nmd%outputfile = '/tmp/output.nc',
 	nmd%kp=1000,
 	nmd%runtime=1000.,
-	nmd%dt=1.,
+	nmd%dt=10.,
 	nmd%rad=100.e-9,
 	nmd%rad_min=1.e-9,
 	nmd%rad_max=5.e-2,

@@ -62,9 +62,12 @@
             nmd%rad, nmd%rad_min, nmd%rad_max, nmd%t,nmd%p, nmd%rh, nmd%mwsol, &
             nmd%rhosol, nmd%d_coeff, &
             gridd%kp,gridd%kp_cur, &
-            gridd%ntim,gridd%dt, gridd%rad,gridd%t,gridd%p,gridd%rh, &
-            gridd%mwsol,gridd%rhosol,gridd%d_coeff,gridd%r,gridd%r05, &
-            gridd%u,gridd%d,gridd%d05,gridd%dr,gridd%dr05,gridd%vol, &
+            gridd%ntim,gridd%dt, gridd%rad,gridd%rad_min, gridd%rad_max, &
+            gridd%t,gridd%p,gridd%rh, &
+            gridd%mwsol,gridd%rhosol,gridd%d_coeff,gridd%r,gridd%r_old,gridd%r05, &
+            gridd%r05_old, &
+            gridd%u,gridd%d,gridd%d05,gridd%dr,gridd%dr_old,&
+            gridd%dr05,gridd%dr05_old,gridd%vol,gridd%vol_old, &
             gridd%c,gridd%cold)
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
