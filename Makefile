@@ -32,9 +32,9 @@ FFLAGS2 =  $(DEBUG) -O3 -o
 
 
 main.exe	:  bmd_lib.a  main.$(OBJ) bmm_code mbd_code bin_diffusion_model.$(OBJ)
-	$(FOR2) $(FFLAGS2)main.exe main.$(OBJ) $(BMM_DIR)/b_micro_lib.a $(MBD_DIR)/diff_lib.a \
+	$(FOR2) $(FFLAGS2)main.exe main.$(OBJ)  \
 		 nrtype.$(OBJ) bin_diffusion_model.$(OBJ) $(BMM_DIR)/bin_microphysics_module.$(OBJ) \
-		 $(MBD_DIR)/diffusion.$(OBJ) \
+		 $(MBD_DIR)/diffusion.$(OBJ) $(BMM_DIR)/b_micro_lib.a $(MBD_DIR)/diff_lib.a \
 		 ${NETCDFLIB} -I ${NETCDFMOD} ${NETCDF_LIB} $(DEBUG) -I${BMM_DIR} 
 bmd_lib.a	:   nrtype.$(OBJ) nr.$(OBJ) nrutil.$(OBJ) polint.$(OBJ) locate.$(OBJ)
 	$(AR) rc bmd_lib.a nrtype.$(OBJ) nr.$(OBJ) nrutil.$(OBJ) polint.$(OBJ) locate.$(OBJ)
