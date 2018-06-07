@@ -191,7 +191,7 @@
         enddo
         
         ! one time-step of model
-        call bin_microphysics(fparcelwarmdiff)
+        call bin_microphysics(fparcelwarmdiff,fparcelcold)
              
         ! break-out if flag has been set 
         if(parcel1%break_flag) exit
