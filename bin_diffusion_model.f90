@@ -99,7 +99,7 @@
     subroutine initialise_bdm_arrays()
         use nrtype
         use nr, only : locate, polint, rkqs, odeint, zbrent, brent
-        use bmm, only : initialise_bmm_arrays
+        use bmm, only : initialise_bmm_arrays, nu_core1
         use diffusion, only : allocate_and_set_diff, nmd, gridd
 
         implicit none
@@ -138,7 +138,7 @@
             call allocate_and_set_diff(nmd%kp,nmd%dt,nmd%runtime, &
                 parcel1%dw(i)/2._sp, nmd%rad_min, nmd%rad_max, nmd%t,nmd%p, parcel1%rh, &
                 parcel1%molwbin(i,1), &
-                parcel1%rhobin(i,1), nmd%d_coeff, &
+                parcel1%rhobin(i,1), nu_core1(1), nmd%d_coeff, &
                 grida(i)%kp,grida(i)%kp_cur, &
                 grida(i)%ntim,grida(i)%dt, grida(i)%rad, &
                 grida(i)%rad_min,grida(i)%rad_max, &
@@ -192,6 +192,12 @@
         
         ! one time-step of model
         call bin_microphysics(fparcelwarmdiff,fparcelcold)
+        
+        ! check there are no negative values
+        where(parcel1%y(1:parcel1%n_bin_mode).le.0.e1_sp)
+            parcel1%y(1:parcel1%n_bin_mode)=1.e-22_sp
+        end where
+
              
         ! break-out if flag has been set 
         if(parcel1%break_flag) exit
