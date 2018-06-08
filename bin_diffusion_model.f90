@@ -171,6 +171,7 @@
     implicit none
     integer(i4b) :: i, j,nt
     logical :: new_file=.true.
+    real(sp) :: flux,deltaV, radius, radiusold
     
     nt=ceiling(runtime / real(dt,kind=sp))
     do i=1,nt
@@ -192,6 +193,50 @@
         
         ! one time-step of model
         call bin_microphysics(fparcelwarmdiff,fparcelcold)
+        
+        
+        ! diffusion out-side of solver
+        do j=1,n_bins
+            grida(j)%c=grida(j)%cold
+            grida(j)%kp_cur=grida(j)%kp_cur_old
+            grida(j)%rad=grida(j)%rad_old
+            grida(j)%r=grida(j)%r_old
+            grida(j)%r05=grida(j)%r05_old
+            grida(j)%dr=grida(j)%dr_old
+            grida(j)%dr05=grida(j)%dr05_old
+            grida(j)%vol=grida(j)%vol_old
+            
+            
+            deltaV=max(parcel1%y(j)-parcel1%yold(j),-parcel1%y(j))/rhow
+        
+			!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+			! shift radii and calculate the velocity of boundaries                       !
+			!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+ 			call move_boundary(grida(j)%kp,grida(j)%kp_cur,parcel1%dt, &
+ 			    radiusold,radius,grida(j)%r,grida(j)%r05,grida(j)%dr,grida(j)%dr05, &
+ 			    grida(j)%vol,grida(j)%u,grida(j)%c,flux, &
+ 			    grida(j)%rad_min,grida(j)%rad_max, grida(j)%mwsol, grida(j)%rhosol, &
+ 			    deltaV)
+            radiusold=radius
+			!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+			!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+			! Set diffusion coefficient to zero at boundary                              !
+			!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+			grida(j)%d05(:)=grida(j)%d_coeff
+			grida(j)%d05(grida(j)%kp_cur:grida(j)%kp) = 0._sp
+			!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+
+			!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+			! solve diffusion equation                                                   !
+			!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+			call backward_euler(grida(j)%kp,grida(j)%kp_cur,parcel1%dt, &
+			    grida(j)%r,grida(j)%r05,grida(j)%u,grida(j)%d,grida(j)%d05,&
+			    grida(j)%dr,grida(j)%dr05,grida(j)%c,grida(j)%cold,flux)
+			!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        
+        enddo
         
         ! check there are no negative values
         where(parcel1%y(1:parcel1%n_bin_mode).le.0.e1_sp)
