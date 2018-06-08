@@ -334,6 +334,7 @@
 
         ! diffusion stuff - part 1
         do i=1,n_bins
+            
             grida(i)%c=grida(i)%cold
             grida(i)%kp_cur=grida(i)%kp_cur_old
             grida(i)%rad=grida(i)%rad_old
@@ -343,7 +344,12 @@
             grida(i)%dr05=grida(i)%dr05_old
             grida(i)%vol=grida(i)%vol_old
             
-            deltaV=(y(i)-parcel1%yold(i))/rhow
+            nwo(i)=grida(i)%c(grida(i)%kp_cur,1)
+            nso(i,1)=grida(i)%c(grida(i)%kp_cur,2)
+
+            if(parcel1%npart(i).le. 1.e-9_sp) cycle
+            
+            deltaV=max(y(i)-parcel1%yold(i),-y(i))/rhow
         
 			!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 			! shift radii and calculate the velocity of boundaries                       !
