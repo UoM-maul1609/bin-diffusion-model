@@ -237,7 +237,7 @@
       real(sp), dimension(:), intent(in) :: mwat, nwo
       real(sp), dimension(:,:), intent(in) :: mbin,rhobin,nubin,molwbin,nso
       integer(i4b), intent(in) :: sz
-      real(sp), dimension(sz) :: nw
+      real(sp), dimension(sz) :: nw, fac
       real(sp), dimension(:),intent(inout) :: rh_eq,rhoat, dw
       real(sp), intent(in) :: t
       real(sp) :: sigma
@@ -252,10 +252,15 @@
   
       ! calculate surface tension
       sigma=surface_tension(t)
-
+        
+      !fac(:)=1._sp+max(sum(nso(:,:)*nubin(:,:),2)/nwo(:),0.1_sp)
+      
       ! equilibrium rh over particle - nb rh_act set to zero if not root-finding
       rh_eq(:)=exp(4._sp*molw_water*sigma/r_gas/t/rhoat(:)/dw(:))* &
            (nwo(:))/(nwo(:)+sum(nso(:,:)*nubin(:,:),2) ) 
+       
+!       rh_eq(:)=exp(4._sp*molw_water*sigma/r_gas/t/rhoat(:)/dw(:))/ fac(:)
+       
 
     end subroutine koehler01_diff
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
