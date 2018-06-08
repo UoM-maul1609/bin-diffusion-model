@@ -1,6 +1,6 @@
  &run_vars
 	outputfile = '/tmp/output1.nc',
-	bin_model_file = 'bmm/namelist.basic',
+	bin_model_file = 'bmm/namelist.diffusion',
 	diffusion_model_file = 'mbd/namelist.in',
 	koehler_shell_flag=1/ ! either calculate equilibrium over particle using 
 	                      !average mole fraction of water: 0

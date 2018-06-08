@@ -20,7 +20,7 @@
                             
         type(grid), allocatable, dimension(:) :: grida
         
-        real(sp), allocatable, dimension(:) :: nwo
+        real(sp), allocatable, dimension(:) :: nwo, jw, nw,ns, aw
         real(sp), allocatable, dimension(:,:) :: nso
         integer(i4b) :: koehler_shell_flag
 
@@ -133,6 +133,15 @@
 		allocate( nso(1:n_bins,1:n_comps), STAT = AllocateStatus)
 		if (AllocateStatus /= 0) STOP "*** Not enough memory ***"	
 
+		allocate( jw(1:nmd%kp), STAT = AllocateStatus)
+		if (AllocateStatus /= 0) STOP "*** Not enough memory ***"	
+		allocate( nw(1:nmd%kp), STAT = AllocateStatus)
+		if (AllocateStatus /= 0) STOP "*** Not enough memory ***"	
+		allocate( ns(1:nmd%kp), STAT = AllocateStatus)
+		if (AllocateStatus /= 0) STOP "*** Not enough memory ***"	
+		allocate( aw(1:nmd%kp), STAT = AllocateStatus)
+		if (AllocateStatus /= 0) STOP "*** Not enough memory ***"	
+
         
         do i=1,n_bins
             call allocate_and_set_diff(nmd%kp,nmd%dt,nmd%runtime, &
@@ -192,7 +201,7 @@
         enddo
         
         ! one time-step of model
-        call bin_microphysics(fparcelwarmdiff,fparcelcold)
+        call bin_microphysics(fparcelwarmdiff,fparcelcold,icenucleation_diff)
         
         
         ! diffusion out-side of solver
@@ -545,6 +554,108 @@
         
     end subroutine fparcelwarmdiff
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! ice nucleation                                                               !
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    subroutine icenucleation_diff(npart, npartice, mwat,mbin2,mbin2_ice, &
+                         rhobin,nubin,kappabin,molwbin,t,p,sz,sz2,yice,rh,dt) 
+      use nrtype
+      implicit none
+      real(sp), intent(inout) :: t
+      real(sp), intent(in) :: p,rh,dt
+      real(sp), dimension(sz2), intent(inout) :: npart,npartice
+      real(sp), dimension(:), intent(in) :: mwat
+      real(sp), dimension(:,:), intent(in) :: mbin2, &
+                                              rhobin,nubin,kappabin,molwbin
+      integer(i4b), intent(in) :: sz,sz2
+      real(sp), dimension(sz2) :: dn01,m01,dw,dd,kappa,rhoat
+      real(sp), dimension(sz2,sz) :: dmaer01
+      real(sp), dimension(sz2,sz), intent(inout) :: mbin2_ice
+      
+      real(sp), intent(inout), dimension(sz2) :: yice
+      integer(i4b) :: i
+      
+      
+      ! loop over each particle:
+      do i=1,sz2
+          !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+          ! first calculate the ice formation over dt using koop et al. 2000       !
+          !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+          ! number of moles of water
+          nw(1:grida(i)%kp_cur)=grida(i)%c(1:grida(i)%kp_cur,1)* &
+                                grida(i)%vol(1:grida(i)%kp_cur)
+          ! number of moles of solute
+          ns(1:grida(i)%kp_cur)=grida(i)%c(1:grida(i)%kp_cur,2)* &
+                                grida(i)%vol(1:grida(i)%kp_cur)
+          ! activity of water
+          select case(kappa_flag)
+            case(0)
+              aw(:)=(nw(:))/(nw(:)+ns(:)*nubin(i,1) )
+            case(1)
+              rhoat(i)=mwat(i)/rhow+sum(mbin2(i,:)/rhobin(i,:))
+              rhoat(i)=(mwat(i)+sum(mbin2(i,:)))/rhoat(i);
+  
+              dw(i)=((mwat(i)+sum(mbin2(i,:)))*6._sp/(pi*rhoat(i)))**(1._sp/3._sp)
+  
+              dd(i)=((sum(mbin2(i,:)/rhobin(i,:)))* &
+                     6._sp/(pi))**(1._sp/3._sp) ! dry diameter
+                                  ! needed for eqn 6, petters and kreidenweis (2007)
+              kappa(i)=sum((mbin2(i,:)+1.e-60_sp)/rhobin(i,:)*kappabin(i,:)) &
+                     / sum((mbin2(i,:)+1.e-60_sp)/rhobin(i,:))
+                     ! equation 7, petters and kreidenweis (2007)
+              aw(i)=(dw(i)**3-dd(i)**3)/(dw(i)**3-dd(i)**3*(1._sp-kappa(i))) ! from eq 6,p+k(acp,2007)
+            case default
+              print *,'error kappa_flag'
+              stop
+          end select
+          ! koop et al. (2000) nucleation rate - due to homogeneous nucleation.
+          jw(1:grida(i)%kp_cur)=koopnucrate(aw(1:grida(i)%kp_cur),t,p,grida(i)%kp_cur)
+          !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      
+          ! the number of ice crystals nucleated:
+          dn01(i)=abs( npart(i)* &
+                (1._sp-exp(-sum(jw(1:grida(i)%kp_cur)* &
+                nw(1:grida(i)%kp_cur))*molw_water/rhow*dt)) )
+      enddo
+      
+      
+
+
+
+      if(t.gt.ttr) then
+          dn01=0._sp
+      endif
+      !!!!
+      ! total aerosol mass in each bin added together:
+      dmaer01(:,:)=(mbin2_ice(:,:)*(spread(npartice(:),2,sz)+1.e-50_sp)+ &
+                      mbin2(:,:)*spread(dn01(:),2,sz) ) 
+      ! total water mass that will be in the ice bins:
+      m01=(yice*npartice+mwat(:)*dn01(:)) 
+
+      ! number conc. of liquid bins:
+      npart(:)=npart(:)-dn01(:)
+      ! number conc. of ice bins:
+      npartice(:)=npartice(:)+dn01(:)
+      ! new ice mass in bin:
+      m01=m01/(npartice) 
+      
+      
+      where(m01.gt.0._sp.and.npartice.gt.0._sp)
+        yice=m01
+      elsewhere
+        yice=yice
+      end where
+      
+      ! aerosol mass in ice bins
+      mbin2_ice(:,:)=dmaer01(:,:)/(1.e-50_sp+spread(npartice,2,sz))
+
+      ! latent heat of fusion:
+      t=t+lf/cp*sum(mwat(:)*dn01(:))
+    end subroutine icenucleation_diff
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    
+
 
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
