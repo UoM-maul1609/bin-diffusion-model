@@ -1,0 +1,7 @@
+&run_vars
+	kp=1,
+	molefrac=0.3,			! water mole fraction
+	t=250.,
+	d_s(1:2)=1.e-18, 1.e-9,		! organic, water
+	param='Lienhard2015',
+	compound='citric acid'/
