@@ -5,6 +5,55 @@
 &dc_vars
 	molefrac(1:3)=0.2, 0.4, 0.6,	! water mole fraction
 	t=250.,
-	d_s(1:2)=1.e-18, 1.e-9,		! organic, water
+	d_self(1:2)=1.e-18, 1.e-9,	! organic, water
 	param='Lienhard2015',		! 'constant', 'darken', 'vignes', 'Lienhard2014', 'Lienhard2015'
 	compound='citric acid'/
+
+
+
+
+
+
+
+
+
+! Included parameterisations and compounds
+!
+! 'constant'
+! Simplist diffusion coefficient used to test the model, not atmospherically relevent as diffusion coefficients depend upon compound, concentration and temperature.
+! d_coeff(:) = d_s(1) 
+!
+! 'darken'
+! Assumes a linear relation between water mole fraction and diffusion coefficient.
+! Suitable for non-viscous mixtures.
+!
+! 'vignes'
+! Assumes a logarithmic relation between water mole fraction and diffusion coefficient.
+! Suitable for viscous mixtures.
+!
+! 'Lienhard2014'
+! http://pubs.rsc.org/en/content/articlehtml/2014/cp/c4cp01939c
+! 'citric acid' [233-280K]
+!
+! 'Lienhard2015'
+! http://www.atmos-chem-phys-discuss.net/15/24473/2015/acpd-15-24473-2015.pdf [discussion]
+! http://www.atmos-chem-phys.net/15/13599/2015/acp-15-13599-2015.pdf [final paper]
+! 'levoglucosan' [215-253K], 'levoglucosan/NH4HSO4' [200-263K], 'raffinose' [210-300K], '3-MBTCA' [240-300K], 'alpha-pinene' [190-300K], 'sucrose' [215-310K], 'citric acid' [223-290K], 'shikimic acid' [240-300K]
+!
+! 'Price2014'
+!
+! 'sucrose' [23.5degreeC],'levoglucosan' [23.5degreeC],'MgSO4' [23.5degreeC],'raffinose' [23.5degreeC]
+!
+! 'Price2015'
+!
+! 'alpha-pinene' [240-280K]
+!
+! 'Price2016' [296K]
+!
+! 'Zobrist2011'
+!
+! 'sucrose' [160-313K]
+!
+! 'Shiraiwa2013'
+! http://pubs.rsc.org/en/content/articlehtml/2013/cp/c3cp51595h
+! Uses perculation theory to estimate the diffusion of water through 'alpha-pinene', depends upon the self-diffussion coefficients and the variables f [0.65-1.] and Z [8-16].
