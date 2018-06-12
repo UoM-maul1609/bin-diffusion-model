@@ -3,25 +3,28 @@ module diffusion_coefficients
 contains
 
 ! read_in_namelist
-subroutine read_in_dc_namelist(nmlfile, kp, molefrac, t, d_s, param, compound, d_c)
+subroutine read_in_dc_namelist(nmlfile, kp, n_comp, molefrac, t, d_s, param, compound, d_c)
 	implicit none
-	integer, intent(out) :: kp
-	real, intent(out) :: t, molefrac
-	!real, intent(out) :: molefrac
+	integer, intent(out) :: kp, n_comp
+	real, intent(out) :: t
+	real, allocatable, dimension(:), intent(out) :: molefrac
 	real, allocatable, dimension (:), intent(out) :: d_c
-	real, dimension(1:2), intent(out) :: d_s
+	real, allocatable, dimension (:), intent(out) :: d_s
 	character (len=50), intent(out) :: param, compound
 	character (len=11), intent(in) :: nmlfile
 
 	! define namelists
-	namelist /run_vars/ kp, molefrac, t, d_s, param, compound
+	namelist /dc_setup/ kp, n_comp
+	namelist /dc_vars/ molefrac, t, d_s, param, compound
 
 	! read in namelist
 	open(10, file=nmlfile, status='old', recl=80, delim='apostrophe')
-	read(10, nml=run_vars)			
+	read(10, nml=dc_setup)			
+		allocate (molefrac(1:kp))
+		allocate (d_s(1:n_comp))
+		allocate (d_c(1:kp))
+	read(10, nml=dc_vars)	
 
-	allocate (d_c(1:kp))
-	
 	close(10)
 
 end subroutine read_in_dc_namelist
@@ -32,10 +35,10 @@ end subroutine read_in_dc_namelist
 subroutine d_coeff(kp, molefrac, t, d_s, param, compound, d_c)
 	implicit none
 	integer, intent(in) :: kp
-	real, intent(in) :: t, molefrac
-	!real, intent(in) :: molefrac
+	real, intent(in) :: t
+	real, allocatable, dimension(:), intent(in) :: molefrac
 	real, allocatable, dimension (:), intent(inout) :: d_c
-	real, dimension(1:2), intent(in) :: d_s
+	real, allocatable, dimension (:), intent(in) :: d_s
 	character (len=50), intent(in) :: param, compound
 
 	select case (param)
@@ -69,10 +72,12 @@ end subroutine d_coeff
 ! http://pubs.rsc.org/en/content/articlehtml/2014/cp/c4cp01939c
 subroutine Lienhard2014(t, molefrac, compound, d_c)
 	implicit none
-	real, intent(in) :: t, molefrac
+	real, intent(in) :: t
+	real, allocatable, dimension(:), intent(in) :: molefrac
 	character (len=50), intent(in) :: compound
 	real, allocatable, dimension (:), intent(inout) :: d_c
-	real :: d_cit, d_w, c, d, alpha
+	real :: d_cit, d_w, c, d
+	real, allocatable, dimension(:) :: alpha
 
 	if (compound == 'citric acid') then
 		d_cit = 10.**(-15.-(175./(t-208.)))
@@ -102,12 +107,14 @@ end subroutine Lienhard2014
 ! http://www.atmos-chem-phys.net/15/13599/2015/acp-15-13599-2015.pdf [final paper]
 subroutine Lienhard2015(t, molefrac, compound, d_c)
 	implicit none
-	real, intent(in) :: t, molefrac
+	real, intent(in) :: t
+	real, allocatable, dimension(:), intent(in) :: molefrac
 	character (len=50), intent(in) :: compound
 	real, allocatable, dimension (:), intent(inout) :: d_c
 	real :: logdwtg0, eact, tg, a, a1, a2, b, b1, b2, &
 		t0, t1, t2, ta, tb, s, zeta_a_0_aw0, zeta_a_aw0, &
-		zeta_v_0, zeta_v, alpha, dwt0, dwt1
+		zeta_v_0, zeta_v, dwt0
+	real, allocatable, dimension(:) :: alpha, dwt1
 
 	select case (compound)
 	case ('levoglucosan')
@@ -199,8 +206,6 @@ subroutine Lienhard2015(t, molefrac, compound, d_c)
 
 	t1=t
 	t2=t
-	!t1(find(t1>ta))=ta
-	!t2(find(t2>tb))=tb
 	if (t1>ta) then 
 		t1=ta 
 	end if
@@ -221,8 +226,11 @@ subroutine Lienhard2015(t, molefrac, compound, d_c)
 
 	dwt0=exp(zeta_a_aw0)
 	dwt1=exp(zeta_a_aw0+(molefrac)*alpha*(zeta_v-zeta_a_aw0))
-
+	
+	! cm**2 s**-1
 	d_c=dwt0**(1-molefrac*alpha)*dwt1**(molefrac*alpha)
+	! m**2 s**-1
+	d_c=d_c*1.e-4
 
 end subroutine Lienhard2015
 
@@ -237,14 +245,22 @@ program main
 use diffusion_coefficients
 implicit none
 
-integer :: kp
-real :: t, molefrac
-real, dimension(1:2) :: d_s
+integer :: kp, n_comp
+real :: t 
+real, allocatable, dimension(:) :: molefrac
+real, allocatable, dimension (:) :: d_s
 real, allocatable, dimension (:) :: d_c
 character (len=50) :: param, compound
 
-call read_in_dc_namelist('namelist.in', kp, molefrac, t, d_s, param, compound, d_c)
+
+call read_in_dc_namelist('namelist.in', kp, n_comp, molefrac, t, d_s, param, compound, d_c)
+
 
 call d_coeff(kp, molefrac, t, d_s, param, compound, d_c)
 
+
 end program main
+
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
