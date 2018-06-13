@@ -50,29 +50,54 @@ subroutine diffusion_coefficient(kp, molefrac, t, d_self, param, compound, d_coe
 	real, allocatable, dimension (:), intent(inout) :: d_coeff
 	real, allocatable, dimension (:), intent(in) :: d_self
 	character (len=50), intent(in) :: param, compound
+	integer :: i
 
 	select case (param)
-	case ('constant')
-	! constant diffusion coefficient
-		d_coeff(:)=d_self(1)
-	case ('darken')
-	! linear relation between water molefraction and diffusion coefficient
-		d_coeff=d_self(1)*(1-molefrac)+d_self(2)*(molefrac)
-	case ('vignes')
-	! logarithmic relation between water mole fraction and diffusion coefficient
-		d_coeff=d_self(1)**(1-molefrac)*d_self(2)**(molefrac)
-	case('Lienhard2014')
-	! http://pubs.rsc.org/en/content/articlehtml/2014/cp/c4cp01939c
-		call Lienhard2014(kp, t, molefrac, compound, d_coeff)
-	case('Lienhard2015')
-	! http://www.atmos-chem-phys-discuss.net/15/24473/2015/acpd-15-24473-2015.pdf [discussion]
-	! http://www.atmos-chem-phys.net/15/13599/2015/acp-15-13599-2015.pdf [final paper]
-		call Lienhard2015(kp, t, molefrac, compound, d_coeff)
-	case default
-		print*, "selected param not found"
-	end select
 
-	print*, "diffusion coefficient = ", d_coeff
+		case ('constant')
+		! constant diffusion coefficient
+			d_coeff(:)=d_self(1)
+
+		case ('darken')
+		! linear relation between water molefraction and diffusion coefficient
+			d_coeff=d_self(1)*(1-molefrac)+d_self(2)*(molefrac)
+
+		case ('vignes')
+		! logarithmic relation between water mole fraction and diffusion coefficient
+			d_coeff=d_self(1)**(1-molefrac)*d_self(2)**(molefrac)
+
+		case('Lienhard2014')
+		! http://pubs.rsc.org/en/content/articlehtml/2014/cp/c4cp01939c
+			call Lienhard2014(kp, t, molefrac, compound, d_coeff)
+
+		case('Lienhard2015')
+		! http://www.atmos-chem-phys-discuss.net/15/24473/2015/acpd-15-24473-2015.pdf [discussion]
+		! http://www.atmos-chem-phys.net/15/13599/2015/acp-15-13599-2015.pdf [final paper]
+			call Lienhard2015(kp, t, molefrac, compound, d_coeff)
+
+		case('Price2014')
+		! http://www.atmos-chem-phys.net/14/3817/2014/
+			call Price2014(molefrac, compound, d_coeff)
+
+		case('Price2015')
+		! http://pubs.rsc.org/en/content/articlehtml/2015/sc/c5sc00685f [Paper]
+		! http://www.rsc.org/suppdata/c5/sc/c5sc00685f/c5sc00685f1.pdf [Supplementary]
+			call Price2015(kp, t, molefrac, compound, d_coeff)
+
+		case('Shiraiwa2013')
+		! http://pubs.rsc.org/en/content/articlehtml/2013/cp/c3cp51595h 
+			call Shiraiwa2013(kp, molefrac, d_self, compound, d_coeff)
+
+		case default
+			print*, "selected param not found"
+
+	end select
+	
+	print*, 'molefrac', ':', 'd_coeff'
+	do i=1,kp
+		write(*,10) molefrac(i), ' : ', d_coeff(i)
+	end do
+10	format (f4.2,a,e9.3)
 
 end subroutine diffusion_coefficient
 
@@ -256,6 +281,149 @@ subroutine Lienhard2015(kp, t, molefrac, compound, d_coeff)
 	d_coeff=d_coeff*1.e-4
 
 end subroutine Lienhard2015
+
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Price2014								       !	
+! http://www.atmos-chem-phys.net/14/3817/2014/ 				       !
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+subroutine Price2014(molefrac, compound, d_coeff)
+	implicit none
+	real, allocatable, dimension(:), intent(in) :: molefrac
+	character (len=50), intent(in) :: compound
+	real, allocatable, dimension (:), intent(inout) :: d_coeff
+	real :: a, b, c, d
+
+	select case (compound)
+    	case ('sucrose')
+        	a = -20.89
+        	b = 25.92
+        	c = -26.97
+        	d = 13.35
+    	case ('levoglucosan')
+        	a = -18.41
+        	b = 31.10
+        	c = -44.43
+        	d = 23.12
+    	case ('MgSO4')
+        	print*, 'data plotted, but no values present in paper'
+    	case ('raffinose')
+        	a = -17.21
+        	b = 24.00
+        	c = -32.50
+        	d = 17.02
+    	case default
+		print*, "selected compound not found"
+	end select
+    
+	d_coeff = 10.**(a+b*molefrac+c*molefrac**2+d*molefrac**3)
+
+end subroutine Price2014
+
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Price2015								       !	
+! http://pubs.rsc.org/en/content/articlehtml/2015/sc/c5sc00685f [Paper]	       !
+! http://www.rsc.org/suppdata/c5/sc/c5sc00685f/c5sc00685f1.pdf [Supplementary] !
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+subroutine Price2015(kp, t, molefrac, compound, d_coeff)
+	implicit none
+	integer, intent(in) :: kp
+	real, intent(in) :: t
+	real, allocatable, dimension(:), intent(in) :: molefrac
+	character (len=50), intent(in) :: compound
+	real, allocatable, dimension (:), intent(inout) :: d_coeff
+	real :: do_som, do_wat, c, d
+	real, allocatable, dimension(:) :: alpha, dwt1
+
+	allocate (alpha(1:kp))
+
+	if (compound=='alpha-pinene') then
+    	do_som = 10.**( -(7.4+(650./(t-165))) )
+    	do_wat = 10.**( -(6.514+(387.4/(t-118))) )
+    		if (t>230) then
+        	c = -13.+0.043*230
+        	d = -10.5+0.035*230
+    		else
+        	c = -13.+0.043*t
+        	d = -10.5+0.035*t
+    		end if
+	alpha = exp((1-molefrac)**2.*(c+3.*d-4.*d*(1-molefrac)))
+    	d_coeff = do_wat**(molefrac*alpha)*do_som**(1-molefrac*alpha)
+	else
+    		print*, "selected compound not found"
+	end if
+
+end subroutine Price2015
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Price2016								       !	
+! 				       !
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Zobrist2011								       !	
+! 				       !
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+
+
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Shiraiwa2013								       !	
+! http://pubs.rsc.org/en/content/articlehtml/2013/cp/c3cp51595h 	       !
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+subroutine Shiraiwa2013(kp, molefrac, d_self, compound, d_coeff)
+	implicit none
+	integer, intent(in) :: kp
+	real, allocatable, dimension(:), intent(in) :: molefrac
+	real, allocatable, dimension (:), intent(in) :: d_self
+	character (len=50), intent(in) :: compound
+	real, allocatable, dimension (:), intent(inout) :: d_coeff
+	real :: rho1, rho2, m1, m2, f, z, d12, d11 
+	real, allocatable, dimension (:) :: v1, v2, volf, d12d, d11d
+	
+	allocate (v1(1:kp), v2(1:kp), volf(1:kp), d12d(1:kp), d11d(1:kp))
+
+	! function variables	
+	f = 1.; 	! [0.65-1]
+    	z = 16; 	! [8 - 16]
+
+	if (compound=='alpha-pinene') then
+    
+    		rho1 = 1000. 	! kg/m^3
+    		rho1 = 1. 	! g/cm^3
+    		rho2 = 858. 	! kg/m^3
+    		rho2 = rho2/1.e3 ! g/cm^3
+    		m1 = 18.02 	! g/mol
+    		m2 = 136.23 	! g/mol
+    
+    		v1 = molefrac*m1/rho1
+    		v2 = (1.-molefrac)*m2/rho2
+    
+    		volf = v1/(v1+v2)
+    		!volf = molefrac
+    
+    		d12 = d_self(1)
+    		d11 = d_self(2)
+
+    		d12d = (z*(1.-volf)/2./f-1.)*d12
+    		d11d = (z*volf/2./f-1.)*d11
+
+    		d_coeff = (d12d+d11d+sqrt((d12d+d11d)**2.+2.*(z-2.)*d12*d11))/(z-2)
+
+	else
+		print*, 'selected compound not found'
+
+	end if
+
+end subroutine Shiraiwa2013
+
 
 end module diffusion_coefficients
 
