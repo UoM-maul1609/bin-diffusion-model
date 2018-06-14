@@ -9,7 +9,7 @@ real :: t
 real, allocatable, dimension(:) :: molefrac
 real, allocatable, dimension (:) :: d_self
 real, allocatable, dimension (:) :: d_coeff
-character (len=50) :: param, compound
+character (len=20) :: param, compound
 
 
 ! read in namelists

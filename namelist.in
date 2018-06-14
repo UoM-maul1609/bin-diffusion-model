@@ -4,9 +4,9 @@
 
 &dc_vars
 	molefrac(1:11)=0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.,	! water mole fraction
-	t=250.,
+	t=200.,
 	d_self(1:2)=1.e-18, 1.e-9,	! organic, water
-	param='Price2014',		! 'constant', 'darken', 'vignes', 'Lienhard2014', 'Lienhard2015', 'Price2014', 'Price2015', 'Shiraiwa2013',
+	param='constant',		
 	compound='sucrose'/
 
 
@@ -14,10 +14,11 @@
 
 
 
-
-
-
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Included parameterisations and compounds
+! 'constant', 'darken', 'vignes', 'Lienhard2014', 'Lienhard2015', 'Price2014', 'Price2015', 'Shiraiwa2013',
+! see below for compounds, temperature ranges and water molefraction ranges 
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !
 ! 'constant'
 ! Simplist diffusion coefficient used to test the model, not atmospherically relevent as diffusion coefficients depend upon compound, concentration and temperature.
@@ -51,10 +52,12 @@
 ! Price 2015 uses the parameterisation given in Lienhard 2014 to find the diffusion coefficient for alpha-pinene. Diffusion is measured in a disk.
 ! 'alpha-pinene' [240-280K]
 !
-! 'Price2016' [296K]
+! 'Price2016'
+! http://xlink.rsc.org/?DOI=C6CP03238A
+! 'sucrose' [296K], 'water' [296K]
 !
 ! 'Zobrist2011'
-!
+! http://pubs.rsc.org/en/content/articlehtml/2011/cp/c0cp01273d
 ! 'sucrose' [160-313K]
 !
 ! 'Shiraiwa2013'
