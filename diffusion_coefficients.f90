@@ -1,3 +1,9 @@
+	!>@author
+	!>Kathryn Fowler, The University of Manchester
+	!>@brief
+	!>module for SOA diffusion coefficient parameterisations
+
+
 module diffusion_coefficients
 
 
@@ -10,6 +16,19 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! read_in_namelist							       !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!>@author
+!>Kathryn Fowler, The University of Manchester
+!>@brief
+!>read in the data from the namelists for diffusion coefficients
+!>@param[in] nmlfile: namelist file
+!>@param[out] kp: number of grid points / shells
+!>@param[out] n_comp: number of components
+!>@param[out] molefrac: water molefraction
+!>@param[out] t: temperature
+!>@param[out] d_self: self diffusion coefficients
+!>@param[out] param: parameterisation type
+!>@param[out] compound: organic component of aerosol
+!>@param[out] d_coeff: mutual diffusion coefficient
 
 subroutine read_in_dc_namelist(nmlfile, kp, n_comp, molefrac, t, d_self, param, compound, d_coeff)
 	implicit none
@@ -41,6 +60,17 @@ end subroutine read_in_dc_namelist
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! diffusion_coefficient							       !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!>@author
+!>Kathryn Fowler, The University of Manchester
+!>@brief
+!>read in the data from the namelists for diffusion coefficients
+!>@param[in] kp: number of grid points / shells
+!>@param[in] molefrac: water molefraction
+!>@param[in] t: temperature
+!>@param[in] d_self: self diffusion coefficients
+!>@param[in] param: parameterisation type
+!>@param[in] compound: organic component of aerosol
+!>@param[inout] d_coeff: mutual diffusion coefficient
 
 subroutine diffusion_coefficient(kp, molefrac, t, d_self, param, compound, d_coeff)
 	implicit none
@@ -114,6 +144,15 @@ end subroutine diffusion_coefficient
 ! Lienhard2014								       !
 ! http://pubs.rsc.org/en/content/articlehtml/2014/cp/c4cp01939c 	       !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!>@author
+!>Kathryn Fowler, The University of Manchester
+!>@brief
+!>read in the data from the namelists for diffusion coefficients
+!>@param[in] kp: number of grid points / shells
+!>@param[in] molefrac: water molefraction
+!>@param[in] t: temperature
+!>@param[in] compound: organic component of aerosol
+!>@param[inout] d_coeff: mutual diffusion coefficient
 
 subroutine Lienhard2014(kp, t, molefrac, compound, d_coeff)
 	implicit none
@@ -156,6 +195,16 @@ end subroutine Lienhard2014
 ! http://www.atmos-chem-phys.net/15/13599/2015/acp-15-13599-2015.pdf 	       !
 ! [final paper]								       !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!>@author
+!>Kathryn Fowler, The University of Manchester
+!>@brief
+!>read in the data from the namelists for diffusion coefficients
+!>@param[in] kp: number of grid points / shells
+!>@param[in] molefrac: water molefraction
+!>@param[in] t: temperature
+!>@param[in] compound: organic component of aerosol
+!>@param[inout] d_coeff: mutual diffusion coefficient
+
 
 subroutine Lienhard2015(kp, t, molefrac, compound, d_coeff)
 	implicit none
@@ -295,6 +344,13 @@ end subroutine Lienhard2015
 ! Price2014								       !	
 ! http://www.atmos-chem-phys.net/14/3817/2014/ 				       !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!>@author
+!>Kathryn Fowler, The University of Manchester
+!>@brief
+!>read in the data from the namelists for diffusion coefficients
+!>@param[in] molefrac: water molefraction
+!>@param[in] compound: organic component of aerosol
+!>@param[inout] d_coeff: mutual diffusion coefficient
 
 subroutine Price2014(molefrac, compound, d_coeff)
 	implicit none
@@ -335,6 +391,15 @@ end subroutine Price2014
 ! http://pubs.rsc.org/en/content/articlehtml/2015/sc/c5sc00685f [Paper]	       !
 ! http://www.rsc.org/suppdata/c5/sc/c5sc00685f/c5sc00685f1.pdf [Supplementary] !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!>@author
+!>Kathryn Fowler, The University of Manchester
+!>@brief
+!>read in the data from the namelists for diffusion coefficients
+!>@param[in] kp: number of grid points / shells
+!>@param[in] molefrac: water molefraction
+!>@param[in] t: temperature
+!>@param[in] compound: organic component of aerosol
+!>@param[inout] d_coeff: mutual diffusion coefficient
 
 subroutine Price2015(kp, t, molefrac, compound, d_coeff)
 	implicit none
@@ -370,6 +435,13 @@ end subroutine Price2015
 ! Price2016								       !	
 ! http://xlink.rsc.org/?DOI=C6CP03238A 					       !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!>@author
+!>Kathryn Fowler, The University of Manchester
+!>@brief
+!>read in the data from the namelists for diffusion coefficients
+!>@param[in] molefrac: water molefraction
+!>@param[in] compound: organic component of aerosol
+!>@param[inout] d_coeff: mutual diffusion coefficient
 
 subroutine Price2016(molefrac, compound, d_coeff)
 	implicit none
@@ -402,6 +474,15 @@ end subroutine Price2016
 ! Zobrist2011								       !	
 ! http://pubs.rsc.org/en/content/articlehtml/2011/cp/c0cp01273d 	       !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!>@author
+!>Kathryn Fowler, The University of Manchester
+!>@brief
+!>read in the data from the namelists for diffusion coefficients
+!>@param[in] kp: number of grid points / shells
+!>@param[in] molefrac: water molefraction
+!>@param[in] t: temperature
+!>@param[in] compound: organic component of aerosol
+!>@param[inout] d_coeff: mutual diffusion coefficient
 
 subroutine Zobrist2011(kp, t, molefrac, compound, d_coeff)
 	implicit none
@@ -443,6 +524,16 @@ end subroutine Zobrist2011
 ! Shiraiwa2013								       !	
 ! http://pubs.rsc.org/en/content/articlehtml/2013/cp/c3cp51595h 	       !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!>@author
+!>Kathryn Fowler, The University of Manchester
+!>@brief
+!>read in the data from the namelists for diffusion coefficients
+!>@param[in] kp: number of grid points / shells
+!>@param[in] molefrac: water molefraction
+!>@param[in] t: temperature
+!>@param[in] d_self: self diffusion coefficients
+!>@param[in] compound: organic component of aerosol
+!>@param[inout] d_coeff: mutual diffusion coefficient
 
 subroutine Shiraiwa2013(kp, molefrac, d_self, compound, d_coeff)
 	implicit none
