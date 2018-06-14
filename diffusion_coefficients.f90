@@ -18,8 +18,8 @@ subroutine read_in_dc_namelist(nmlfile, kp, n_comp, molefrac, t, d_self, param, 
 	real, allocatable, dimension(:), intent(out) :: molefrac
 	real, allocatable, dimension (:), intent(out) :: d_coeff
 	real, allocatable, dimension (:), intent(out) :: d_self
-	character (len=50), intent(out) :: param, compound
-	character (len=11), intent(in) :: nmlfile
+	character (len=*), intent(out) :: param, compound
+	character (len=*), intent(in) :: nmlfile
 
 	! define namelists
 	namelist /dc_setup/ kp, n_comp
@@ -49,7 +49,7 @@ subroutine diffusion_coefficient(kp, molefrac, t, d_self, param, compound, d_coe
 	real, allocatable, dimension(:), intent(in) :: molefrac
 	real, allocatable, dimension (:), intent(inout) :: d_coeff
 	real, allocatable, dimension (:), intent(in) :: d_self
-	character (len=50), intent(in) :: param, compound
+	character (len=*), intent(in) :: param, compound
 	integer :: i
 
 	select case (param)
@@ -84,6 +84,14 @@ subroutine diffusion_coefficient(kp, molefrac, t, d_self, param, compound, d_coe
 		! http://www.rsc.org/suppdata/c5/sc/c5sc00685f/c5sc00685f1.pdf [Supplementary]
 			call Price2015(kp, t, molefrac, compound, d_coeff)
 
+		case('Price2016')
+		! http://xlink.rsc.org/?DOI=C6CP03238A	
+			call Price2016(molefrac, compound, d_coeff)
+
+		case('Zobrist2011')
+		! http://pubs.rsc.org/en/content/articlehtml/2011/cp/c0cp01273d
+			call Zobrist2011(kp, t, molefrac, compound, d_coeff)
+
 		case('Shiraiwa2013')
 		! http://pubs.rsc.org/en/content/articlehtml/2013/cp/c3cp51595h 
 			call Shiraiwa2013(kp, molefrac, d_self, compound, d_coeff)
@@ -112,16 +120,16 @@ subroutine Lienhard2014(kp, t, molefrac, compound, d_coeff)
 	integer, intent(in) :: kp
 	real, intent(in) :: t
 	real, allocatable, dimension(:), intent(in) :: molefrac
-	character (len=50), intent(in) :: compound
+	character (len=*), intent(in) :: compound
 	real, allocatable, dimension (:), intent(inout) :: d_coeff
-	real :: d_coeffit, d_w, c, d
+	real :: d_coeffit, d_molefrac, c, d
 	real, allocatable, dimension(:) :: alpha
 
 	allocate (alpha(1:kp))
 
 	if (compound == 'citric acid') then
 		d_coeffit = 10.**(-15.-(175./(t-208.)))
-		d_w = 10.**(-6.514-(387.4/(t-118.)))
+		d_molefrac = 10.**(-6.514-(387.4/(t-118.)))
 		if (t>265) then
 			c = -41.+0.143*265.
 		else
@@ -133,7 +141,7 @@ subroutine Lienhard2014(kp, t, molefrac, compound, d_coeff)
         		d = -69.+0.28*t
    		end if
 		alpha = exp((1.-molefrac)**2.*(c+3.*d-4.*d*(1.-molefrac)))
-    		d_coeff = d_w**(molefrac*alpha)*d_coeffit**(1.-molefrac*alpha)
+    		d_coeff = d_molefrac**(molefrac*alpha)*d_coeffit**(1.-molefrac*alpha)
 	else
 		print*, 'selected compound not found'
 	end if
@@ -154,7 +162,7 @@ subroutine Lienhard2015(kp, t, molefrac, compound, d_coeff)
 	integer, intent(in) :: kp
 	real, intent(in) :: t
 	real, allocatable, dimension(:), intent(in) :: molefrac
-	character (len=50), intent(in) :: compound
+	character (len=*), intent(in) :: compound
 	real, allocatable, dimension (:), intent(inout) :: d_coeff
 	real :: logdwtg0, eact, tg, a, a1, a2, b, b1, b2, &
 		t0, t1, t2, ta, tb, s, zeta_a_0_aw0, zeta_a_aw0, &
@@ -291,7 +299,7 @@ end subroutine Lienhard2015
 subroutine Price2014(molefrac, compound, d_coeff)
 	implicit none
 	real, allocatable, dimension(:), intent(in) :: molefrac
-	character (len=50), intent(in) :: compound
+	character (len=*), intent(in) :: compound
 	real, allocatable, dimension (:), intent(inout) :: d_coeff
 	real :: a, b, c, d
 
@@ -333,7 +341,7 @@ subroutine Price2015(kp, t, molefrac, compound, d_coeff)
 	integer, intent(in) :: kp
 	real, intent(in) :: t
 	real, allocatable, dimension(:), intent(in) :: molefrac
-	character (len=50), intent(in) :: compound
+	character (len=*), intent(in) :: compound
 	real, allocatable, dimension (:), intent(inout) :: d_coeff
 	real :: do_som, do_wat, c, d
 	real, allocatable, dimension(:) :: alpha, dwt1
@@ -360,17 +368,75 @@ end subroutine Price2015
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Price2016								       !	
-! 				       !
+! http://xlink.rsc.org/?DOI=C6CP03238A 					       !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+subroutine Price2016(molefrac, compound, d_coeff)
+	implicit none
+	real, allocatable, dimension(:), intent(in) :: molefrac
+	character (len=*), intent(in) :: compound
+	real, allocatable, dimension (:), intent(inout) :: d_coeff
+	real :: a, b, c, d
+
+	select case (compound)
+    	case ('water')
+       		a = -20.89
+        	b = 25.92
+        	c = -26.97
+        	d = 13.35
+    	case ('sucrose')
+        	a = -30.97
+        	b = 54.89
+        	c = -62.34
+        	d = 29.12
+    	case default
+		print*, "selected compound not found"
+	end select
+    
+	d_coeff = 10.**(a+b*molefrac+c*molefrac**2.+d*molefrac**3.)
+
+end subroutine Price2016
 
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Zobrist2011								       !	
-! 				       !
+! http://pubs.rsc.org/en/content/articlehtml/2011/cp/c0cp01273d 	       !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+subroutine Zobrist2011(kp, t, molefrac, compound, d_coeff)
+	implicit none
+	integer, intent (in) :: kp
+	real, intent(in) :: t
+	real, allocatable, dimension(:), intent(in) :: molefrac
+	character (len=*), intent(in) :: compound
+	real, allocatable, dimension (:), intent(inout) :: d_coeff
+	real :: a, b, c, d, e, f, g, t_theta
+	real, allocatable, dimension(:) :: molefracd, aw, ad, bd, to
 
+	allocate(aw(1:kp), ad(1:kp), bd(1:kp), to(1:kp))
+
+	if (compound=='sucrose') then  
+    		a = -1.
+    		b = -0.99721
+    		c = 0.13599
+    		d = 0.001688
+    		e = -0.005151
+    		f = 0.009607
+    		g = -0.006142
+    		t_theta = 298.15		! kelvin, 160<T<313
+		molefracd=1-molefrac
+    		aw = (1.+a*molefracd)/(1.+b*molefracd+c*molefracd**2.) &
+			+(t-t_theta)*(d*molefracd+e*molefracd**2.+f*molefracd**3+g*molefracd**4)
+		print*, aw
+    		ad = 7.+0.175*(1.-46.46*(1.-aw))
+    		bd = 262.867*(1.+10.53*(1.-aw)-0.3*(1.-aw)**2.)
+    		to = 127.9*(1.+0.4514*(1.-aw)-0.51*(1.-aw)**1.7) 
+    		d_coeff = 10.**( -(ad+(bd/(t-to))) )
+	else
+		print*, 'selected compound not found'
+	end if
+
+end subroutine Zobrist2011
 
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -383,7 +449,7 @@ subroutine Shiraiwa2013(kp, molefrac, d_self, compound, d_coeff)
 	integer, intent(in) :: kp
 	real, allocatable, dimension(:), intent(in) :: molefrac
 	real, allocatable, dimension (:), intent(in) :: d_self
-	character (len=50), intent(in) :: compound
+	character (len=*), intent(in) :: compound
 	real, allocatable, dimension (:), intent(inout) :: d_coeff
 	real :: rho1, rho2, m1, m2, f, z, d12, d11 
 	real, allocatable, dimension (:) :: v1, v2, volf, d12d, d11d
