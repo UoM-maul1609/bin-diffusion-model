@@ -23,18 +23,18 @@ The repository contains the following files:
 
 Note that not all diffusion coefficient parameterisations require all of these inputs.
 
-param           | compound
-----------------| --------
-1 constant      | -
-2 darken        | -
-3 vignes        | -
-4 Lienhard2014  | 1 citric acid
-5 Lienhard2015  | 1 levoglucaosan / 2 levoglucosan/NH_4HSO_4 / 3 raffinose / 4 3-MBTCA / 5 alpha-pinene / 6 sucrose / 7 citric acid / 8 shikimic acid
-6 Price2014     |
-7 Price2015     |
-8 Price2016     |
-9 Zobrist2011   |
-10 Shiraiwa2013 |
+param               | compound
+--------------------| --------
+**1** constant      | -
+**2** darken        | -
+**3** vignes        | -
+**4** Lienhard2014  | 1 citric acid
+**5** Lienhard2015  | 1 levoglucaosan / 2 levoglucosan/NH4HSO4 / 3 raffinose / 4 3-MBTCA / 5 alpha-pinene / 6 sucrose / 7 citric acid / 8 shikimic acid
+**6** Price2014     |
+**7** Price2015     |
+**8** Price2016     |
+**9** Zobrist2011   |
+**10** Shiraiwa2013 |
 
 ### output
 - *d_coeff*: mutual diffusion coefficient
