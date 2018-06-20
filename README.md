@@ -56,10 +56,10 @@ Once compiled, run by typing `./main.exe namelist.in`, this will print the mutua
 ## to do list
 
 - [x] update README.md
-- [] change switch string compares to integers
-- [] include as subdirectory to mbd
-- [] include as subdirectory to bdm
-- [] consider interpolating over the molefractions at the grid midpoints
+- [ ] change switch string compares to integers
+- [ ] include as subdirectory to mbd
+- [ ] include as subdirectory to bdm
+- [ ] consider interpolating over the molefractions at the grid midpoints
 
 
 
