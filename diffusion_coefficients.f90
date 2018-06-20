@@ -1,7 +1,7 @@
-	!>@author
-	!>Kathryn Fowler, The University of Manchester
-	!>@brief
-	!>module for SOA diffusion coefficient parameterisations
+!>@author
+!>Kathryn Fowler, The University of Manchester
+!>@brief
+!>module for SOA diffusion coefficient parameterisations
 
 
 module diffusion_coefficients
@@ -32,12 +32,11 @@ contains
 
 subroutine read_in_dc_namelist(nmlfile, kp, n_comp, molefrac, t, d_self, param, compound, d_coeff)
 	implicit none
-	integer, intent(out) :: kp, n_comp
+	integer, intent(out) :: kp, n_comp, param, compound
 	real, intent(out) :: t
 	real, allocatable, dimension(:), intent(out) :: molefrac
 	real, allocatable, dimension (:), intent(out) :: d_coeff
 	real, allocatable, dimension (:), intent(out) :: d_self
-	character (len=*), intent(out) :: param, compound
 	character (len=*), intent(in) :: nmlfile
 
 	! define namelists
@@ -74,55 +73,54 @@ end subroutine read_in_dc_namelist
 
 subroutine diffusion_coefficient(kp, molefrac, t, d_self, param, compound, d_coeff)
 	implicit none
-	integer, intent(in) :: kp
+	integer, intent(in) :: kp, param, compound
 	real, intent(in) :: t
 	real, allocatable, dimension(:), intent(in) :: molefrac
 	real, allocatable, dimension (:), intent(inout) :: d_coeff
 	real, allocatable, dimension (:), intent(in) :: d_self
-	character (len=*), intent(in) :: param, compound
-	integer :: i
+
 
 	select case (param)
 
-		case ('constant')
+		case (1) !constant
 		! constant diffusion coefficient
 			d_coeff(:)=d_self(1)
 
-		case ('darken')
+		case (2) !darken
 		! linear relation between water molefraction and diffusion coefficient
 			d_coeff=d_self(1)*(1-molefrac)+d_self(2)*(molefrac)
 
-		case ('vignes')
+		case (3) !vignes
 		! logarithmic relation between water mole fraction and diffusion coefficient
 			d_coeff=d_self(1)**(1-molefrac)*d_self(2)**(molefrac)
 
-		case('Lienhard2014')
+		case(4) !Lienhard2014
 		! http://pubs.rsc.org/en/content/articlehtml/2014/cp/c4cp01939c
 			call Lienhard2014(kp, t, molefrac, compound, d_coeff)
 
-		case('Lienhard2015')
+		case(5) !Lienhard2015
 		! http://www.atmos-chem-phys-discuss.net/15/24473/2015/acpd-15-24473-2015.pdf [discussion]
 		! http://www.atmos-chem-phys.net/15/13599/2015/acp-15-13599-2015.pdf [final paper]
 			call Lienhard2015(kp, t, molefrac, compound, d_coeff)
 
-		case('Price2014')
+		case(6) !Price2014
 		! http://www.atmos-chem-phys.net/14/3817/2014/
 			call Price2014(molefrac, compound, d_coeff)
 
-		case('Price2015')
+		case(7) !Price2015
 		! http://pubs.rsc.org/en/content/articlehtml/2015/sc/c5sc00685f [Paper]
 		! http://www.rsc.org/suppdata/c5/sc/c5sc00685f/c5sc00685f1.pdf [Supplementary]
 			call Price2015(kp, t, molefrac, compound, d_coeff)
 
-		case('Price2016')
+		case(8) !Price2016
 		! http://xlink.rsc.org/?DOI=C6CP03238A	
 			call Price2016(molefrac, compound, d_coeff)
 
-		case('Zobrist2011')
+		case(9) !Zobrist2011
 		! http://pubs.rsc.org/en/content/articlehtml/2011/cp/c0cp01273d
 			call Zobrist2011(kp, t, molefrac, compound, d_coeff)
 
-		case('Shiraiwa2013')
+		case(10) !Shiraiwa2013
 		! http://pubs.rsc.org/en/content/articlehtml/2013/cp/c3cp51595h 
 			call Shiraiwa2013(kp, molefrac, d_self, compound, d_coeff)
 
@@ -130,12 +128,7 @@ subroutine diffusion_coefficient(kp, molefrac, t, d_self, param, compound, d_coe
 			print*, "selected param not found"
 
 	end select
-	
-	print*, 'molefrac', ':', 'd_coeff'
-	do i=1,kp
-		write(*,10) molefrac(i), ' : ', d_coeff(i)
-	end do
-10	format (f4.2,a,e9.3)
+
 
 end subroutine diffusion_coefficient
 
@@ -156,17 +149,17 @@ end subroutine diffusion_coefficient
 
 subroutine Lienhard2014(kp, t, molefrac, compound, d_coeff)
 	implicit none
-	integer, intent(in) :: kp
+	integer, intent(in) :: kp, compound
 	real, intent(in) :: t
 	real, allocatable, dimension(:), intent(in) :: molefrac
-	character (len=*), intent(in) :: compound
 	real, allocatable, dimension (:), intent(inout) :: d_coeff
 	real :: d_coeffit, d_molefrac, c, d
 	real, allocatable, dimension(:) :: alpha
 
 	allocate (alpha(1:kp))
 
-	if (compound == 'citric acid') then
+	! citric acid
+	if (compound == 1) then
 		d_coeffit = 10.**(-15.-(175./(t-208.)))
 		d_molefrac = 10.**(-6.514-(387.4/(t-118.)))
 		if (t>265) then
@@ -208,10 +201,9 @@ end subroutine Lienhard2014
 
 subroutine Lienhard2015(kp, t, molefrac, compound, d_coeff)
 	implicit none
-	integer, intent(in) :: kp
+	integer, intent(in) :: kp, compound
 	real, intent(in) :: t
 	real, allocatable, dimension(:), intent(in) :: molefrac
-	character (len=*), intent(in) :: compound
 	real, allocatable, dimension (:), intent(inout) :: d_coeff
 	real :: logdwtg0, eact, tg, a, a1, a2, b, b1, b2, &
 		t0, t1, t2, ta, tb, s, zeta_a_0_aw0, zeta_a_aw0, &
@@ -222,7 +214,8 @@ subroutine Lienhard2015(kp, t, molefrac, compound, d_coeff)
 	
 
 	select case (compound)
-	case ('levoglucosan')
+	
+	case (1) !levoglucosan
         	logdwtg0=-27.06
         	eact=157.9
         	tg=249.0
@@ -232,7 +225,7 @@ subroutine Lienhard2015(kp, t, molefrac, compound, d_coeff)
         	b1=8.561
         	b2=0.027
         	tb=243.0        
-    	case ('levoglucosan/NH4HSO4')
+    	case (2) !levoglucosan/NH4HSO4
         	logdwtg0=-45.58
         	eact=142.2
         	tg=206.5
@@ -242,7 +235,7 @@ subroutine Lienhard2015(kp, t, molefrac, compound, d_coeff)
         	b1=16.57
         	b2=-0.063
         	tb=243.0        
-    	case ('raffinose')
+    	case (3) !raffinose
         	logdwtg0=-15.76
         	eact=80.1
         	tg=378.3
@@ -252,7 +245,7 @@ subroutine Lienhard2015(kp, t, molefrac, compound, d_coeff)
         	b1=17.00
         	b2=0.00
         	tb=273.5       
-    	case ('3-MBTCA')
+    	case (4) !3-MBTCA
         	logdwtg0=-24.86
         	eact=64.5
         	tg=305.0
@@ -262,7 +255,7 @@ subroutine Lienhard2015(kp, t, molefrac, compound, d_coeff)
         	b1=0.00
         	b2=0.00
         	tb=300.0        
-    	case ('alpha-pinene')
+    	case (5) !alpha-pinene
         	logdwtg0=-26.60
         	eact=65.5
         	tg=270.0
@@ -272,7 +265,7 @@ subroutine Lienhard2015(kp, t, molefrac, compound, d_coeff)
         	b1=-10.65
         	b2=0.039
         	tb=273.0        
-    	case ('sucrose')
+    	case (6) !sucrose
         	logdwtg0=-18.22
         	eact=190.3
         	tg=335.7
@@ -282,7 +275,7 @@ subroutine Lienhard2015(kp, t, molefrac, compound, d_coeff)
         	b1=-14.65
         	b2=0.050
         	tb=253.0    
-    	case ('citric acid')
+    	case (7) !citric acid
         	logdwtg0=-29.67
         	eact=122.3
         	tg=280.1
@@ -292,7 +285,7 @@ subroutine Lienhard2015(kp, t, molefrac, compound, d_coeff)
         	b1=-69.00
         	b2=0.280
         	tb=255.0
-    	case ('shikimic acid')
+    	case (8) !shikimic acid
         	logdwtg0=-18.21
         	eact=204.9
         	tg=326.8
@@ -355,24 +348,24 @@ end subroutine Lienhard2015
 subroutine Price2014(molefrac, compound, d_coeff)
 	implicit none
 	real, allocatable, dimension(:), intent(in) :: molefrac
-	character (len=*), intent(in) :: compound
+	integer, intent(in) :: compound
 	real, allocatable, dimension (:), intent(inout) :: d_coeff
 	real :: a, b, c, d
 
 	select case (compound)
-    	case ('sucrose')
+    	case (1) !sucrose
         	a = -20.89
         	b = 25.92
         	c = -26.97
         	d = 13.35
-    	case ('levoglucosan')
+    	case (2) !levoglucosan
         	a = -18.41
         	b = 31.10
         	c = -44.43
         	d = 23.12
-    	case ('MgSO4')
+    	case (3) !MgSO4
         	print*, 'data plotted, but no values present in paper'
-    	case ('raffinose')
+    	case (4) !raffinose
         	a = -17.21
         	b = 24.00
         	c = -32.50
@@ -403,17 +396,17 @@ end subroutine Price2014
 
 subroutine Price2015(kp, t, molefrac, compound, d_coeff)
 	implicit none
-	integer, intent(in) :: kp
+	integer, intent(in) :: kp, compound
 	real, intent(in) :: t
 	real, allocatable, dimension(:), intent(in) :: molefrac
-	character (len=*), intent(in) :: compound
 	real, allocatable, dimension (:), intent(inout) :: d_coeff
 	real :: do_som, do_wat, c, d
 	real, allocatable, dimension(:) :: alpha, dwt1
 
 	allocate (alpha(1:kp))
 
-	if (compound=='alpha-pinene') then
+	! alpha-pinene
+	if (compound==1) then
     	do_som = 10.**( -(7.4+(650./(t-165))) )
     	do_wat = 10.**( -(6.514+(387.4/(t-118))) )
     		if (t>230) then
@@ -446,21 +439,21 @@ end subroutine Price2015
 subroutine Price2016(molefrac, compound, d_coeff)
 	implicit none
 	real, allocatable, dimension(:), intent(in) :: molefrac
-	character (len=*), intent(in) :: compound
+	integer, intent(in) :: compound
 	real, allocatable, dimension (:), intent(inout) :: d_coeff
 	real :: a, b, c, d
 
 	select case (compound)
-    	case ('water')
-       		a = -20.89
-        	b = 25.92
-        	c = -26.97
-        	d = 13.35
-    	case ('sucrose')
+    	case (1) !sucrose
         	a = -30.97
         	b = 54.89
         	c = -62.34
         	d = 29.12
+	case (2) !water
+       		a = -20.89
+        	b = 25.92
+        	c = -26.97
+        	d = 13.35
     	case default
 		print*, "selected compound not found"
 	end select
@@ -486,17 +479,17 @@ end subroutine Price2016
 
 subroutine Zobrist2011(kp, t, molefrac, compound, d_coeff)
 	implicit none
-	integer, intent (in) :: kp
+	integer, intent (in) :: kp, compound
 	real, intent(in) :: t
 	real, allocatable, dimension(:), intent(in) :: molefrac
-	character (len=*), intent(in) :: compound
 	real, allocatable, dimension (:), intent(inout) :: d_coeff
 	real :: a, b, c, d, e, f, g, t_theta
 	real, allocatable, dimension(:) :: molefracd, aw, ad, bd, to
 
 	allocate(aw(1:kp), ad(1:kp), bd(1:kp), to(1:kp))
 
-	if (compound=='sucrose') then  
+	! sucrose
+	if (compound==1) then  
     		a = -1.
     		b = -0.99721
     		c = 0.13599
@@ -508,7 +501,6 @@ subroutine Zobrist2011(kp, t, molefrac, compound, d_coeff)
 		molefracd=1-molefrac
     		aw = (1.+a*molefracd)/(1.+b*molefracd+c*molefracd**2.) &
 			+(t-t_theta)*(d*molefracd+e*molefracd**2.+f*molefracd**3+g*molefracd**4)
-		print*, aw
     		ad = 7.+0.175*(1.-46.46*(1.-aw))
     		bd = 262.867*(1.+10.53*(1.-aw)-0.3*(1.-aw)**2.)
     		to = 127.9*(1.+0.4514*(1.-aw)-0.51*(1.-aw)**1.7) 
@@ -537,10 +529,9 @@ end subroutine Zobrist2011
 
 subroutine Shiraiwa2013(kp, molefrac, d_self, compound, d_coeff)
 	implicit none
-	integer, intent(in) :: kp
+	integer, intent(in) :: kp, compound
 	real, allocatable, dimension(:), intent(in) :: molefrac
 	real, allocatable, dimension (:), intent(in) :: d_self
-	character (len=*), intent(in) :: compound
 	real, allocatable, dimension (:), intent(inout) :: d_coeff
 	real :: rho1, rho2, m1, m2, f, z, d12, d11 
 	real, allocatable, dimension (:) :: v1, v2, volf, d12d, d11d
@@ -551,7 +542,8 @@ subroutine Shiraiwa2013(kp, molefrac, d_self, compound, d_coeff)
 	f = 1.; 	! [0.65-1]
     	z = 16; 	! [8 - 16]
 
-	if (compound=='alpha-pinene') then
+	! alpha-pinene
+	if (compound==1) then
     
     		rho1 = 1000. 	! kg/m^3
     		rho1 = 1. 	! g/cm^3

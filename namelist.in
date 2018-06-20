@@ -4,10 +4,10 @@
 
 &dc_vars
 	molefrac(1:11)=0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.,	! water mole fraction
-	t=200.,
+	t=217.,
 	d_self(1:2)=1.e-18, 1.e-9,	! organic, water
-	param='constant',		
-	compound='sucrose'/
+	param=5,	! see notes below, eg 5=Lienhard2015	
+	compound=5/	! see notes below, eg 5=alpha-pinene (for Lienhard2015)
 
 
 
@@ -20,47 +20,47 @@
 ! see below for compounds, temperature ranges and water molefraction ranges 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !
-! 'constant'
+! (1) constant
 ! Simplist diffusion coefficient used to test the model, not atmospherically relevent as diffusion coefficients depend upon compound, concentration and temperature.
 ! d_coeff(:) = d_s(1) 
 !
-! 'darken'
+! (2) darken
 ! Assumes a linear relation between water mole fraction and diffusion coefficient.
 ! Suitable for non-viscous mixtures.
 !
-! 'vignes'
+! (3) 'vignes'
 ! Assumes a logarithmic relation between water mole fraction and diffusion coefficient.
 ! Suitable for viscous mixtures.
 !
-! 'Lienhard2014'
+! (4) 'Lienhard2014'
 ! http://pubs.rsc.org/en/content/articlehtml/2014/cp/c4cp01939c
-! 'citric acid' [233-280K]
+! 1 'citric acid' [233-280K]
 !
-! 'Lienhard2015'
+! (5) 'Lienhard2015'
 ! http://www.atmos-chem-phys-discuss.net/15/24473/2015/acpd-15-24473-2015.pdf [discussion]
 ! http://www.atmos-chem-phys.net/15/13599/2015/acp-15-13599-2015.pdf [final paper]
-! 'levoglucosan' [215-253K], 'levoglucosan/NH4HSO4' [200-263K], 'raffinose' [210-300K], '3-MBTCA' [240-300K], 'alpha-pinene' [190-300K], 'sucrose' [215-310K], 'citric acid' [223-290K], 'shikimic acid' [240-300K]
+! 1 'levoglucosan' [215-253K], 2 'levoglucosan/NH4HSO4' [200-263K], 3 'raffinose' [210-300K], 4 '3-MBTCA' [240-300K], 5 'alpha-pinene' [190-300K], 6 'sucrose' [215-310K], 7 'citric acid' [223-290K], 8 'shikimic acid' [240-300K]
 !
-! 'Price2014'
+! (6) 'Price2014'
 ! http://www.atmos-chem-phys.net/14/3817/2014/
 ! Price 2014 only finds the diffusion coefficients for water in sucrose, levoglucosan, MgSO4 and Raffinose at a temperature of 23.5+/-0.5degreeC or 298.65+/-0.5K.
-! 'sucrose' [23.5degreeC],'levoglucosan' [23.5degreeC],'MgSO4' [23.5degreeC],'raffinose' [23.5degreeC]
+! 1 'sucrose' [23.5degreeC], 2 'levoglucosan' [23.5degreeC], 3 'MgSO4' [23.5degreeC], 4 'raffinose' [23.5degreeC]
 !
-! 'Price2015'
+! (7) 'Price2015'
 ! http://pubs.rsc.org/en/content/articlehtml/2015/sc/c5sc00685f [Paper]
 ! http://www.rsc.org/suppdata/c5/sc/c5sc00685f/c5sc00685f1.pdf [Supplementary]
 ! Price 2015 uses the parameterisation given in Lienhard 2014 to find the diffusion coefficient for alpha-pinene. Diffusion is measured in a disk.
-! 'alpha-pinene' [240-280K]
+! 1 'alpha-pinene' [240-280K]
 !
-! 'Price2016'
+! (8) 'Price2016'
 ! http://xlink.rsc.org/?DOI=C6CP03238A
-! 'sucrose' [296K], 'water' [296K]
+! 1 'sucrose' [296K], 2 'water' [296K]
 !
-! 'Zobrist2011'
+! (9) 'Zobrist2011'
 ! http://pubs.rsc.org/en/content/articlehtml/2011/cp/c0cp01273d
-! 'sucrose' [160-313K]
+! 1 'sucrose' [160-313K]
 !
-! 'Shiraiwa2013'
+! (10) 'Shiraiwa2013'
 ! http://pubs.rsc.org/en/content/articlehtml/2013/cp/c3cp51595h
 ! Uses perculation theory to estimate the diffusion of water through 'alpha-pinene', depends upon the self-diffussion coefficients and the variables f [0.65-1.] and Z [8-16].
-! The diffussion coefficients are valid for 'alpha-pinene' between the water mole fractions [0.3-1.]
+! The diffussion coefficients are valid for 1 'alpha-pinene' between the water mole fractions [0.3-1.]
