@@ -46,6 +46,23 @@ param               | compound
 The main function prints the molefraction and corresponding diffusion coefficient to the terminal.
 
 
+## running the code
+
+To compile the code using gfortran type `make` into the terminal.
+
+Once compiled, run by typing `./main.exe namelist.in`, this will print the mutual diffusion coefficients into the terminal for the namelist inputs.
+
+
+## to do list
+
+- [x] update README.md
+- [] change switch string compares to integers
+- [] include as subdirectory to mbd
+- [] include as subdirectory to bdm
+- [] consider interpolating over the molefractions at the grid midpoints
+
+
+
 ## diffusion_coefficients.f90 subroutines
 
 **diffusion_coefficient**
@@ -123,4 +140,4 @@ http://pubs.rsc.org/en/content/articlehtml/2013/cp/c3cp51595h
 
 
 
-## running the code
+
