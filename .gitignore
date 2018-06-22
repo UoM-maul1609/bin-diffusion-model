@@ -6,7 +6,3 @@
 *.out
 *~
 doxygen
-matlab/radial_function.m
-references
-namelist.andreas
-namelist.run
