@@ -75,9 +75,9 @@
         implicit none
         integer(i4b), intent(in) :: kp, param, compound
         real(sp), intent(in) :: t
-        real(sp), allocatable, dimension(:), intent(in) :: molefrac
-        real(sp), allocatable, dimension (:), intent(inout) :: d_coeff
-        real(sp), allocatable, dimension (:), intent(in) :: d_self
+        real(sp), dimension(kp), intent(in) :: molefrac
+        real(sp), dimension (kp), intent(inout) :: d_coeff
+        real(sp), dimension (kp), intent(in) :: d_self
 
 
         select case (param)
@@ -105,7 +105,7 @@
 
             case(6) !Price2014
             ! http://www.atmos-chem-phys.net/14/3817/2014/
-                call Price2014(molefrac, compound, d_coeff)
+                call Price2014(kp,molefrac, compound, d_coeff)
 
             case(7) !Price2015
             ! http://pubs.rsc.org/en/content/articlehtml/2015/sc/c5sc00685f [Paper]
@@ -114,7 +114,7 @@
 
             case(8) !Price2016
             ! http://xlink.rsc.org/?DOI=C6CP03238A	
-                call Price2016(molefrac, compound, d_coeff)
+                call Price2016(kp,molefrac, compound, d_coeff)
 
             case(9) !Zobrist2011
             ! http://pubs.rsc.org/en/content/articlehtml/2011/cp/c0cp01273d
@@ -150,12 +150,11 @@
         implicit none
         integer(i4b), intent(in) :: kp, compound
         real(sp), intent(in) :: t
-        real(sp), allocatable, dimension(:), intent(in) :: molefrac
-        real(sp), allocatable, dimension (:), intent(inout) :: d_coeff
+        real(sp), dimension(kp), intent(in) :: molefrac
+        real(sp), dimension (kp), intent(inout) :: d_coeff
         real(sp) :: d_coeffit, d_molefrac, c, d
-        real(sp), allocatable, dimension(:) :: alpha
+        real(sp), dimension(kp) :: alpha
 
-        allocate (alpha(1:kp))
 
         ! citric acid
         if (compound == 1) then
@@ -200,14 +199,13 @@
         implicit none
         integer(i4b), intent(in) :: kp, compound
         real(sp), intent(in) :: t
-        real(sp), allocatable, dimension(:), intent(in) :: molefrac
-        real(sp), allocatable, dimension (:), intent(inout) :: d_coeff
+        real(sp), dimension(kp), intent(in) :: molefrac
+        real(sp), dimension (kp), intent(inout) :: d_coeff
         real(sp) :: logdwtg0, eact, tg, a, a1, a2, b, b1, b2, &
             t0, t1, t2, ta, tb, s, zeta_a_0_aw0, zeta_a_aw0, &
             zeta_v_0, zeta_v, dwt0
-        real(sp), allocatable, dimension(:) :: alpha, dwt1
+        real(sp), dimension(kp) :: alpha, dwt1
 
-        allocate (alpha(1:kp), dwt1(1:kp))
     
 
         select case (compound)
@@ -338,14 +336,15 @@
     !>Kathryn Fowler, The University of Manchester
     !>@brief
     !>read in the data from the namelists for diffusion coefficients
+    !>@param[in] kp: number of grid points / shells
     !>@param[in] molefrac: water molefraction
     !>@param[in] compound: organic component of aerosol
     !>@param[inout] d_coeff: mutual diffusion coefficient
-    subroutine Price2014(molefrac, compound, d_coeff)
+    subroutine Price2014(kp, molefrac, compound, d_coeff)
         implicit none
-        real(sp), allocatable, dimension(:), intent(in) :: molefrac
-        integer(i4b), intent(in) :: compound
-        real(sp), allocatable, dimension (:), intent(inout) :: d_coeff
+        real(sp), dimension(kp), intent(in) :: molefrac
+        integer(i4b), intent(in) :: kp, compound
+        real(sp), dimension (kp), intent(inout) :: d_coeff
         real(sp) :: a, b, c, d
 
         select case (compound)
@@ -393,12 +392,11 @@
         implicit none
         integer(i4b), intent(in) :: kp, compound
         real(sp), intent(in) :: t
-        real(sp), allocatable, dimension(:), intent(in) :: molefrac
-        real(sp), allocatable, dimension (:), intent(inout) :: d_coeff
+        real(sp), dimension(kp), intent(in) :: molefrac
+        real(sp), dimension (kp), intent(inout) :: d_coeff
         real(sp) :: do_som, do_wat, c, d
-        real(sp), allocatable, dimension(:) :: alpha, dwt1
+        real(sp), dimension(kp) :: alpha, dwt1
 
-        allocate (alpha(1:kp))
 
         ! alpha-pinene
         if (compound==1) then
@@ -427,14 +425,15 @@
     !>Kathryn Fowler, The University of Manchester
     !>@brief
     !>read in the data from the namelists for diffusion coefficients
+    !>@param[in] kp: number of grid points / shells
     !>@param[in] molefrac: water molefraction
     !>@param[in] compound: organic component of aerosol
     !>@param[inout] d_coeff: mutual diffusion coefficient
-    subroutine Price2016(molefrac, compound, d_coeff)
+    subroutine Price2016(kp, molefrac, compound, d_coeff)
         implicit none
-        real(sp), allocatable, dimension(:), intent(in) :: molefrac
-        integer(i4b), intent(in) :: compound
-        real(sp), allocatable, dimension (:), intent(inout) :: d_coeff
+        real(sp), dimension(kp), intent(in) :: molefrac
+        integer(i4b), intent(in) :: kp, compound
+        real(sp), dimension (kp), intent(inout) :: d_coeff
         real(sp) :: a, b, c, d
 
         select case (compound)
@@ -474,12 +473,11 @@
         implicit none
         integer(i4b), intent (in) :: kp, compound
         real(sp), intent(in) :: t
-        real(sp), allocatable, dimension(:), intent(in) :: molefrac
-        real(sp), allocatable, dimension (:), intent(inout) :: d_coeff
+        real(sp), dimension(kp), intent(in) :: molefrac
+        real(sp), dimension (kp), intent(inout) :: d_coeff
         real(sp) :: a, b, c, d, e, f, g, t_theta
-        real(sp), allocatable, dimension(:) :: molefracd, aw, ad, bd, to
+        real(sp), dimension(kp) :: molefracd, aw, ad, bd, to
 
-        allocate(aw(1:kp), ad(1:kp), bd(1:kp), to(1:kp))
 
         ! sucrose
         if (compound==1) then  
@@ -523,17 +521,16 @@
     subroutine Shiraiwa2013(kp, molefrac, d_self, compound, d_coeff)
         implicit none
         integer(i4b), intent(in) :: kp, compound
-        real(sp), allocatable, dimension(:), intent(in) :: molefrac
-        real(sp), allocatable, dimension (:), intent(in) :: d_self
-        real(sp), allocatable, dimension (:), intent(inout) :: d_coeff
+        real(sp), dimension(kp), intent(in) :: molefrac
+        real(sp), dimension (kp), intent(in) :: d_self
+        real(sp), dimension (kp), intent(inout) :: d_coeff
         real(sp) :: rho1, rho2, m1, m2, f, z, d12, d11 
-        real(sp), allocatable, dimension (:) :: v1, v2, volf, d12d, d11d
+        real(sp), dimension (kp) :: v1, v2, volf, d12d, d11d
     
-        allocate (v1(1:kp), v2(1:kp), volf(1:kp), d12d(1:kp), d11d(1:kp))
 
         ! function variables	
-        f = 1.; 	! [0.65-1]
-            z = 16; 	! [8 - 16]
+        f = 1. 	! [0.65-1]
+        z = 16 	! [8 - 16]
 
         ! alpha-pinene
         if (compound==1) then
