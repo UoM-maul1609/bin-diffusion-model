@@ -7,6 +7,7 @@
     use nr, only : locate, polint
     use diffusion, only : grid, backward_euler, move_boundary
     use bmm
+    use diffusion_coefficients 
 	!>@author
 	!>Paul J. Connolly, The University of Manchester
 	!>@brief
@@ -16,13 +17,20 @@
 
 
         character (len=200) :: outputfile='output', bin_model_file='', &
-                            diffusion_model_file=''
+                            diffusion_model_file='', diffusion_coeff_file=''
                             
         type(grid), allocatable, dimension(:) :: grida
         
         real(sp), allocatable, dimension(:) :: nwo, jw, nw,ns, aw
         real(sp), allocatable, dimension(:,:) :: nso
         integer(i4b) :: koehler_shell_flag
+        integer(i4b) :: diffusion_type
+        
+        ! for calculating diffusion coefficients
+        real(sp), allocatable, dimension (:) :: d_self
+        integer(i4b) :: n_compsw, & ! number of compositions (including water)
+                        param, & ! type of parameterisation for diffusion coefficients
+                        compound ! compound for diffusion coefficients
 
 
 	private 
@@ -45,12 +53,14 @@
 	subroutine read_in_bdm_namelist(nmlfile)
 	    use bmm
 	    use diffusion, only : nmd
+	    use diffusion_coefficients
 		implicit none
         character (len=200), intent(in) :: nmlfile
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         ! namelists                                                            !
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         namelist /run_vars/ outputfile, bin_model_file, diffusion_model_file, &
+                            diffusion_coeff_file, diffusion_type, &
                             koehler_shell_flag
         namelist /run_vars/ nmd
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -80,14 +90,49 @@
         close(8)
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
          
+         
+        !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        ! diffusion coefficients namelist                                      !
+        !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        call read_in_dc_namelist2(diffusion_coeff_file, n_compsw, &
+            d_self, param, compound)
+        !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
 	end subroutine read_in_bdm_namelist
 
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! read in dcc namelist							                           !
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !>@author
+    !>Kathryn Fowler and Paul J. Connolly, The University of Manchester
+    !>@brief
+    !>read in the data from the namelists for diffusion coefficients
+    !>@param[in] nmlfile: namelist file
+    !>@param[out] n_comp: number of components
+    !>@param[out] d_self: self diffusion coefficients
+    !>@param[out] param: parameterisation type
+    !>@param[out] compound: organic component of aerosol
+    subroutine read_in_dc_namelist2(nmlfile, n_comp, &
+                d_self, param, compound)
+        implicit none
+        integer(i4b), intent(out) :: n_comp, param, compound
+        real(sp), allocatable, dimension (:), intent(out) :: d_self
+        character (len=*), intent(in) :: nmlfile
 
+        ! define namelists
+        namelist /dc_setup/ n_comp
+        namelist /dc_vars/ d_self, param, compound
 
+        ! read in namelist
+        open(10, file=nmlfile, status='old', recl=80, delim='apostrophe')
+        read(10, nml=dc_setup)			
+        allocate (d_self(1:n_comp))
+        read(10, nml=dc_vars)	
 
+        close(10)
 
-
-
+    end subroutine read_in_dc_namelist2
+    
 	
 	!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 	! initialise arrays                                                            !
@@ -177,13 +222,18 @@
 	!>driver for the bin diffusion model
     subroutine bdm_driver()
     use nrtype
+    use bmm, only : parcel, parcel1
     implicit none
     integer(i4b) :: i, j,nt
     logical :: new_file=.true.
-    real(sp) :: flux,deltaV, radius, radiusold
+    real(sp) :: flux,deltaV, radius, radiusold, t_tstep
+    
     
     nt=ceiling(runtime / real(dt,kind=sp))
     do i=1,nt
+        t_tstep=parcel1%y(parcel1%ite) ! use a constant temperature for the diffusion 
+                                       ! over the time-step
+    
         ! output to file
         call output(io1%new_file,outputfile)
         call outputdiff(new_file,outputfile)
@@ -198,6 +248,7 @@
             grida(j)%dr_old=grida(j)%dr
             grida(j)%dr05_old=grida(j)%dr05
             grida(j)%vol_old=grida(j)%vol
+            grida(j)%t=t_tstep ! will use this for the temperature
         enddo
         
         ! one time-step of model
@@ -229,12 +280,30 @@
             radiusold=radius
 			!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+
+
+
 			!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-			! Set diffusion coefficient to zero at boundary                              !
+			! Set diffusion coefficients - inc. zero at boundary                         !
 			!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-			grida(j)%d05(:)=grida(j)%d_coeff
+			select case (diffusion_type)
+			    case(0)
+			        grida(j)%d05(:)=grida(j)%d_coeff
+			    case(1)
+			        call diffusion_coefficient(grida(j)%kp_cur, &
+			                grida(j)%cold(1:grida(j)%kp_cur,1) / &
+			                    sum(grida(j)%cold(1:grida(j)%kp_cur,:),2), &
+			                grida(j)%t, d_self, param, &
+			                compound, grida(j)%d05(1:grida(j)%kp_cur))
+			    case default
+			        print *,'error diffusion type'
+			        stop
+			end select
 			grida(j)%d05(grida(j)%kp_cur:grida(j)%kp) = 0._sp
 			!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+
+
 
 
 			!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -312,6 +381,7 @@
       ! equilibrium rh over particle - nb rh_act set to zero if not root-finding
       rh_eq(:)=exp(4._sp*molw_water*sigma/r_gas/t/rhoat(:)/dw(:))* &
            (nwo(:))/(nwo(:)+sum(nso(:,:)*nubin(:,:),2) ) 
+       
        
 !       rh_eq(:)=exp(4._sp*molw_water*sigma/r_gas/t/rhoat(:)/dw(:))/ fac(:)
        
@@ -409,7 +479,6 @@
             if(parcel1%npart(i).le. 1.e-9_sp) cycle
             
             deltaV=max(y(i)-parcel1%yold(i),-y(i))/rhow
-        
 			!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 			! shift radii and calculate the velocity of boundaries                       !
 			!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -422,11 +491,23 @@
 			!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 			!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-			! Set diffusion coefficient to zero at boundary                              !
+			! Set diffusion coefficients - inc. zero at boundary                         !
 			!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-			grida(i)%d05(:)=grida(i)%d_coeff
+			select case (diffusion_type)
+			    case(0)
+			        grida(i)%d05(:)=grida(i)%d_coeff
+			    case(1)
+			        call diffusion_coefficient(grida(i)%kp_cur, &
+			                grida(i)%cold(1:grida(i)%kp_cur,1) / &
+			                    sum(grida(i)%cold(1:grida(i)%kp_cur,:),2), &
+			                grida(i)%t, d_self, param, &
+			                compound, grida(i)%d05(1:grida(i)%kp_cur))
+			    case default
+			        print *,'error diffusion type'
+			        stop
+			end select
 			grida(i)%d05(grida(i)%kp_cur:grida(i)%kp) = 0._sp
-			!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
 
 
 			!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -480,7 +561,7 @@
             parcel1%rhoat,parcel1%dw,ipart)
         ! do not bother if number concentration too small
         do i=1,ipart
-            if(isnan(parcel1%da_dt(i)).or.parcel1%npart(i).le. 1.e-9_sp) then
+            if(isnan(parcel1%da_dt(i)).or.(parcel1%npart(i).le. 1.e-9_sp)) then
               parcel1%da_dt(i)=0._sp
             endif
         enddo
@@ -591,7 +672,12 @@
           ! activity of water
           select case(kappa_flag)
             case(0)
-              aw(:)=(nw(:))/(nw(:)+ns(:)*nubin(i,1) )
+              ! beware of underflow here:
+              aw(1:grida(i)%kp_cur)=(grida(i)%c(1:grida(i)%kp_cur,1))/ &
+                (grida(i)%c(1:grida(i)%kp_cur,1)+ &
+                (grida(i)%c(1:grida(i)%kp_cur,2))*nubin(i,1) )
+              !aw(:)=(nw(:))/(nw(:)+(ns(:))*nubin(i,1) )
+              !aw(:)=(mwat(i)/molw_water)/(mwat(i)/molw_water+mbin2(i,1)/molwbin(i,1)*nubin(i,1) )
             case(1)
               rhoat(i)=mwat(i)/rhow+sum(mbin2(i,:)/rhobin(i,:))
               rhoat(i)=(mwat(i)+sum(mbin2(i,:)))/rhoat(i);
@@ -614,9 +700,9 @@
           !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
       
           ! the number of ice crystals nucleated:
-          dn01(i)=abs( npart(i)* &
+          dn01(i)=max( npart(i)* &
                 (1._sp-exp(-sum(jw(1:grida(i)%kp_cur)* &
-                nw(1:grida(i)%kp_cur))*molw_water/rhow*dt)) )
+                nw(1:grida(i)%kp_cur))*molw_water/rhow*dt)) ,0._sp)
       enddo
       
       
@@ -717,6 +803,15 @@
             call check( nf90_put_att(io1%ncid, io1%a_dimid, &
                        "units", "m") )
 
+            ! define variable: vol
+            call check( nf90_def_var(io1%ncid, "vol", NF90_DOUBLE, &
+                        (/io1%y_dimid, io1%bin_dimid, io1%x_dimid/), io1%varid) )
+            ! get id to a_dimid
+            call check( nf90_inq_varid(io1%ncid, "vol", io1%a_dimid) )
+            ! units
+            call check( nf90_put_att(io1%ncid, io1%a_dimid, &
+                       "units", "m3") )
+
 
                    
         call check( nf90_enddef(io1%ncid) )
@@ -738,6 +833,11 @@
         ! write variable: r
         call check( nf90_inq_varid(io1%ncid, "r", io1%varid ) )
         call check( nf90_put_var(io1%ncid, io1%varid, grida(i)%r(1:grida(i)%kp), &
+                    start = (/1,i,io1%icur/)))
+
+        ! write variable: vol
+        call check( nf90_inq_varid(io1%ncid, "vol", io1%varid ) )
+        call check( nf90_put_var(io1%ncid, io1%varid, grida(i)%vol(1:grida(i)%kp), &
                     start = (/1,i,io1%icur/)))
     enddo
 

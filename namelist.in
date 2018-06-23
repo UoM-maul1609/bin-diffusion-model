@@ -2,7 +2,11 @@
 	outputfile = '/tmp/output1.nc',
 	bin_model_file = 'bmm/namelist.diffusion',
 	diffusion_model_file = 'mbd/namelist.in',
-	koehler_shell_flag=1/ ! either calculate equilibrium over particle using 
+	diffusion_coeff_file = 'namelist.diff_coeffs',
+	diffusion_type = 1,   ! 0: use constant diffusion coefficient in mbd namelist
+	                      ! 1: use diffusion coefficients calculated from dcc
+	koehler_shell_flag=0/ ! either calculate equilibrium over particle using 
 	                      !average mole fraction of water: 0
 	                      !mole fraction of water in outer most shell: 1
+	                      
  
