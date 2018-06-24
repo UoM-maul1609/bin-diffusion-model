@@ -190,7 +190,11 @@
         
         do i=1,n_bins
             call allocate_and_set_diff(nmd%kp,nmd%dt,nmd%runtime, &
-                parcel1%dw(i)/2._sp, nmd%rad_min, nmd%rad_max, nmd%t,nmd%p, parcel1%rh, &
+!                parcel1%dw(i)/2._sp, nmd%rad_min, nmd%rad_max, nmd%t,nmd%p, parcel1%rh, &
+                parcel1%dw(i)/2._sp, nmd%rad_min, nmd%rad_max, nmd%t,nmd%p, &
+                parcel1%mbin(i,n_comps+1)/molw_water/ &
+                    (parcel1%mbin(i,n_comps+1)/molw_water + &
+                     parcel1%mbin(i,1)/parcel1%molwbin(i,1)*parcel1%nubin(i,1)), &
                 parcel1%molwbin(i,1), &
                 parcel1%rhobin(i,1), nu_core1(1), nmd%d_coeff, &
                 grida(i)%kp,grida(i)%kp_cur, &
@@ -238,6 +242,8 @@
         call output(io1%new_file,outputfile)
         call outputdiff(new_file,outputfile)
         
+        
+        
         ! store old aerosol state
         do j=1,n_bins
             grida(j)%cold=grida(j)%c
@@ -249,6 +255,7 @@
             grida(j)%dr05_old=grida(j)%dr05
             grida(j)%vol_old=grida(j)%vol
             grida(j)%t=t_tstep ! will use this for the temperature
+
         enddo
         
         ! one time-step of model
@@ -267,7 +274,10 @@
             grida(j)%vol=grida(j)%vol_old
             
             
-            deltaV=max(parcel1%y(j)-parcel1%yold(j),-parcel1%y(j))/rhow
+!             deltaV=max(parcel1%y(j)-parcel1%yold(j),-parcel1%y(j))/rhow
+            deltaV=(parcel1%y(j)-&
+                sum(grida(j)%c(1:grida(j)%kp_cur,1)* &
+                grida(j)%vol(1:grida(j)%kp_cur))*molw_water) /rhow
         
 			!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 			! shift radii and calculate the velocity of boundaries                       !
@@ -291,8 +301,8 @@
 			        grida(j)%d05(:)=grida(j)%d_coeff
 			    case(1)
 			        call diffusion_coefficient(grida(j)%kp_cur, &
-			                grida(j)%cold(1:grida(j)%kp_cur,1) / &
-			                    sum(grida(j)%cold(1:grida(j)%kp_cur,:),2), &
+			                grida(j)%c(1:grida(j)%kp_cur,1) / &
+			                    sum(grida(j)%c(1:grida(j)%kp_cur,:),2), &
 			                grida(j)%t, d_self, param, &
 			                compound, grida(j)%d05(1:grida(j)%kp_cur))
 			    case default
@@ -314,6 +324,8 @@
 			    grida(j)%dr,grida(j)%dr05,grida(j)%c,grida(j)%cold,flux)
 			!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         
+!             parcel1%y(j)=sum(grida(j)%vol(1:grida(j)%kp_cur) * &
+!                     grida(j)%c(1:grida(j)%kp_cur,1) )*molw_water
         enddo
         
         ! check there are no negative values
@@ -440,7 +452,7 @@
     
 
         ! check there are no negative values
-        where(y(1:ipart).le.0.e1_sp)
+        where(y(1:ipart).le.0._sp)
             y(1:ipart)=1.e-22_sp
         end where
 
@@ -478,10 +490,16 @@
 
             if(parcel1%npart(i).le. 1.e-9_sp) cycle
             
-            deltaV=max(y(i)-parcel1%yold(i),-y(i))/rhow
+!             deltaV=max(y(i)- &
+!                 sum(grida(i)%c(1:grida(i)%kp_cur,1)*grida(i)%vol(1:grida(i)%kp_cur))*molw_water &
+!                 ,-y(i))/rhow
+            deltaV=(y(i)- &
+                sum(grida(i)%c(1:grida(i)%kp_cur,1)*grida(i)%vol(1:grida(i)%kp_cur))*molw_water &
+                )/rhow
 			!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 			! shift radii and calculate the velocity of boundaries                       !
 			!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+			flux=0._sp
  			call move_boundary(grida(i)%kp,grida(i)%kp_cur,tt-tstart, &
  			    radiusold,radius,grida(i)%r,grida(i)%r05,grida(i)%dr,grida(i)%dr05, &
  			    grida(i)%vol,grida(i)%u,grida(i)%c,flux, &
@@ -518,8 +536,12 @@
 			    grida(i)%dr,grida(i)%dr05,grida(i)%c,grida(i)%cold,flux)
 			!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-            nwo(i)=grida(i)%c(grida(i)%kp_cur,1)
-            nso(i,1)=grida(i)%c(grida(i)%kp_cur,2)
+            nwo(i)=grida(i)%c(grida(i)%kp_cur,1)/sum(grida(i)%c(1:grida(i)%kp_cur,1)) *y(i)/molw_water
+            nso(i,1)=grida(i)%c(grida(i)%kp_cur,2)/ &
+                sum(grida(i)%c(1:grida(i)%kp_cur,2)) *parcel1%mbin(i,1)/parcel1%molwbin(i,1)
+            
+!             nwo(i)=y(i)/molw_water
+!             nso(i,1)=parcel1%mbin(i,1)/parcel1%molwbin(i,1)
         enddo        
 
 
@@ -534,10 +556,10 @@
                            parcel1%rh_eq,parcel1%rhoat, parcel1%dw) 
                            
                     case(1) ! just use water in outer shell
-                        call koehler01_diff(t,y(1:ipart),parcel1%mbin(:,1:n_comps), &
+                        call koehler01_diff(t,y(1:ipart),parcel1%mbin(1:ipart,1:n_comps), &
                            nwo,nso, &
-                           parcel1%rhobin(:,1:n_comps), parcel1%nubin(:,1:n_comps), &
-                           parcel1%molwbin(:,1:n_comps),ipart, &
+                           parcel1%rhobin(1:ipart,1:n_comps), parcel1%nubin(1:ipart,1:n_comps), &
+                           parcel1%molwbin(1:ipart,1:n_comps),ipart, &
                            parcel1%rh_eq,parcel1%rhoat, parcel1%dw) 
                            
                     case default
@@ -561,11 +583,17 @@
             parcel1%rhoat,parcel1%dw,ipart)
         ! do not bother if number concentration too small
         do i=1,ipart
-            if(isnan(parcel1%da_dt(i)).or.(parcel1%npart(i).le. 1.e-9_sp)) then
+            if(isnan(parcel1%da_dt(i))) then
               parcel1%da_dt(i)=0._sp
             endif
+!             if(isnan(parcel1%da_dt(i)).or.(parcel1%npart(i).le. 1.e-9_sp)) then
+!               parcel1%da_dt(i)=0._sp
+!             endif
         enddo
 
+!         if((tt > 200._sp) ) then
+!             print *,nwo(40)/(nwo(40)+nso(40,1)), y(40),parcel1%da_dt(40),tt,y(irh), parcel1%rh_eq(40)
+!         endif
 
         
         ! mass growth rate
