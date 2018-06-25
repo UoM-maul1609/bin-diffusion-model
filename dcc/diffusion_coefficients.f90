@@ -126,6 +126,7 @@
 
             case default
                 print*, "selected param not found"
+                stop
 
         end select
 
@@ -158,22 +159,23 @@
 
         ! citric acid
         if (compound == 1) then
-            d_coeffit = 10.**(-15.-(175./(t-208.)))
-            d_molefrac = 10.**(-6.514-(387.4/(t-118.)))
-            if (t>265) then
-                c = -41.+0.143*265.
+            d_coeffit = 10._sp**(-15._sp-(175._sp/(t-208._sp)))
+            d_molefrac = 10._sp**(-6.514_sp-(387.4_sp/(t-118._sp)))
+            if (t>265._sp) then
+                c = -41._sp+0.143_sp*265._sp
             else
-                c = -41.+0.143*t
+                c = -41._sp+0.143_sp*t
             end if
-            if (t>255) then
-                d = -69.+0.28*255.
+            if (t>255._sp) then
+                d = -69._sp+0.28_sp*255._sp
                 else
-                    d = -69.+0.28*t
+                    d = -69._sp+0.28_sp*t
             end if
-            alpha = exp((1.-molefrac)**2.*(c+3.*d-4.*d*(1.-molefrac)))
-                d_coeff = d_molefrac**(molefrac*alpha)*d_coeffit**(1.-molefrac*alpha)
+            alpha = exp((1._sp-molefrac)**2._sp*(c+3.*d-4._sp*d*(1._sp-molefrac)))
+                d_coeff = d_molefrac**(molefrac*alpha)*d_coeffit**(1._sp-molefrac*alpha)
         else
             print*, 'selected compound not found'
+            stop
         end if
 
     end subroutine Lienhard2014
@@ -211,91 +213,92 @@
         select case (compound)
     
         case (1) !levoglucosan
-                logdwtg0=-27.06
-                eact=157.9
-                tg=249.0
-                a1=-52.77
-                a2=0.211
-                ta=243.0
-                b1=8.561
-                b2=0.027
-                tb=243.0        
+                logdwtg0=-27.06_sp
+                eact=157.9_sp
+                tg=249.0_sp
+                a1=-52.77_sp
+                a2=0.211_sp
+                ta=243.0_sp
+                b1=8.561_sp
+                b2=0.027_sp
+                tb=243.0_sp     
             case (2) !levoglucosan/NH4HSO4
-                logdwtg0=-45.58
-                eact=142.2
-                tg=206.5
-                a1=-44.96
-                a2=0.185
-                ta=243.0
-                b1=16.57
-                b2=-0.063
-                tb=243.0        
+                logdwtg0=-45.58_sp
+                eact=142.2_sp
+                tg=206.5_sp
+                a1=-44.96_sp
+                a2=0.185_sp
+                ta=243.0_sp
+                b1=16.57_sp
+                b2=-0.063_sp
+                tb=243.0_sp    
             case (3) !raffinose
-                logdwtg0=-15.76
-                eact=80.1
-                tg=378.3
-                a1=-139.9
-                a2=0.347
-                ta=273.5
-                b1=17.00
-                b2=0.00
-                tb=273.5       
+                logdwtg0=-15.76_sp
+                eact=80.1_sp
+                tg=378.3_sp
+                a1=-139.9_sp
+                a2=0.347_sp
+                ta=273.5_sp
+                b1=17.00_sp
+                b2=0.00_sp
+                tb=273.5_sp     
             case (4) !3-MBTCA
-                logdwtg0=-24.86
-                eact=64.5
-                tg=305.0
-                a1=-5.033
-                a2=0.015
-                ta=300.0
-                b1=0.00
-                b2=0.00
-                tb=300.0        
+                logdwtg0=-24.86_sp
+                eact=64.5_sp
+                tg=305.0_sp
+                a1=-5.033_sp
+                a2=0.015_sp
+                ta=300.0_sp
+                b1=0.00_sp
+                b2=0.00_sp
+                tb=300.0_sp      
             case (5) !alpha-pinene
-                logdwtg0=-26.60
-                eact=65.5
-                tg=270.0
-                a1=-18.31
-                a2=0.063
-                ta=273.0
-                b1=-10.65
-                b2=0.039
-                tb=273.0        
+                logdwtg0=-26.60_sp
+                eact=65.5_sp
+                tg=270.0_sp
+                a1=-18.31_sp
+                a2=0.063_sp
+                ta=273.0_sp
+                b1=-10.65_sp
+                b2=0.039_sp
+                tb=273.0_sp     
             case (6) !sucrose
-                logdwtg0=-18.22
-                eact=190.3
-                tg=335.7
-                a1=-16.65
-                a2=0.050
-                ta=253.0
-                b1=-14.65
-                b2=0.050
-                tb=253.0    
+                logdwtg0=-18.22_sp
+                eact=190.3_sp
+                tg=335.7_sp
+                a1=-16.65_sp
+                a2=0.050_sp
+                ta=253.0_sp
+                b1=-14.65_sp
+                b2=0.050_sp
+                tb=253.0_sp 
             case (7) !citric acid
-                logdwtg0=-29.67
-                eact=122.3
-                tg=280.1
-                a1=-41.00
-                a2=0.143
-                ta=265.0
-                b1=-69.00
-                b2=0.280
-                tb=255.0
+                logdwtg0=-29.67_sp
+                eact=122.3_sp
+                tg=280.1_sp
+                a1=-41.00_sp
+                a2=0.143_sp
+                ta=265.0_sp
+                b1=-69.00_sp
+                b2=0.280_sp
+                tb=255.0_sp
             case (8) !shikimic acid
-                logdwtg0=-18.21
-                eact=204.9
-                tg=326.8
-                a1=-16.30
-                a2=0.062
-                ta=263.0
-                b1=16.3
-                b2=-0.062
-                tb=263.0
+                logdwtg0=-18.21_sp
+                eact=204.9_sp
+                tg=326.8_sp
+                a1=-16.30_sp
+                a2=0.062_sp
+                ta=263.0_sp
+                b1=16.3_sp
+                b2=-0.062_sp
+                tb=263.0_sp
         case default
             print*, "selected compound not found"
+            stop
         end select
 
-        zeta_a_0_aw0=logdwtg0+1.e3*eact/8.314/tg
-        zeta_a_aw0=zeta_a_0_aw0-1.e3*eact/8.314/t
+        zeta_a_0_aw0=logdwtg0+1.e3_sp*eact/8.314_sp/tg
+        zeta_a_aw0=zeta_a_0_aw0-1.e3_sp*eact/8.314_sp/t
 
         t1=t
         t2=t
@@ -310,20 +313,20 @@
     
         !alpha=exp( (1-molefrac).^2) 
         !alpha=1.
-        alpha(:)=exp( (1.-molefrac)**2.*(a+3.*b-4.*b*(1-molefrac))  )
+        alpha(:)=exp( (1._sp-molefrac)**2._sp*(a+3._sp*b-4._sp*b*(1._sp-molefrac))  )
 
-        t0=118
-        s=892
-        zeta_v_0=log(3.06e-3)
+        t0=118._sp
+        s=892._sp
+        zeta_v_0=log(3.06e-3_sp)
         zeta_v=zeta_v_0-s/(t-t0)
 
         dwt0=exp(zeta_a_aw0)
         dwt1=exp(zeta_a_aw0+(molefrac)*alpha*(zeta_v-zeta_a_aw0))
     
         ! cm**2 s**-1
-        d_coeff=dwt0**(1-molefrac*alpha)*dwt1**(molefrac*alpha)
+        d_coeff=dwt0**(1._sp-molefrac*alpha)*dwt1**(molefrac*alpha)
         ! m**2 s**-1
-        d_coeff=d_coeff*1.e-4
+        d_coeff=d_coeff*1.e-4_sp
 
     end subroutine Lienhard2015
 
@@ -349,24 +352,26 @@
 
         select case (compound)
             case (1) !sucrose
-                a = -20.89
-                b = 25.92
-                c = -26.97
-                d = 13.35
+                a = -20.89_sp
+                b = 25.92_sp
+                c = -26.97_sp
+                d = 13.35_sp
             case (2) !levoglucosan
-                a = -18.41
-                b = 31.10
-                c = -44.43
-                d = 23.12
+                a = -18.41_sp
+                b = 31.10_sp
+                c = -44.43_sp
+                d = 23.12_sp
             case (3) !MgSO4
                 print*, 'data plotted, but no values present in paper'
+                stop
             case (4) !raffinose
-                a = -17.21
-                b = 24.00
-                c = -32.50
-                d = 17.02
+                a = -17.21_sp
+                b = 24.00_sp
+                c = -32.50_sp
+                d = 17.02_sp
             case default
-            print*, "selected compound not found"
+                print*, "selected compound not found"
+                stop
         end select
     
         d_coeff = 10.**(a+b*molefrac+c*molefrac**2+d*molefrac**3)
@@ -400,19 +405,20 @@
 
         ! alpha-pinene
         if (compound==1) then
-            do_som = 10.**( -(7.4+(650./(t-165))) )
-            do_wat = 10.**( -(6.514+(387.4/(t-118))) )
-                if (t>230) then
-                c = -13.+0.043*230
-                d = -10.5+0.035*230
+            do_som = 10._sp**( -(7.4_sp+(650._sp/(t-165._sp))) )
+            do_wat = 10._sp**( -(6.514_sp+(387.4_sp/(t-118._sp))) )
+                if (t>230._sp) then
+                c = -13._sp+0.043_sp*230._sp
+                d = -10.5_sp+0.035_sp*230._sp
                 else
-                c = -13.+0.043*t
-                d = -10.5+0.035*t
+                c = -13._sp+0.043_sp*t
+                d = -10.5_sp+0.035_sp*t
                 end if
-        alpha = exp((1-molefrac)**2.*(c+3.*d-4.*d*(1-molefrac)))
-            d_coeff = do_wat**(molefrac*alpha)*do_som**(1-molefrac*alpha)
+        alpha = exp((1._sp-molefrac)**2.*(c+3._sp*d-4._sp*d*(1._sp-molefrac)))
+            d_coeff = do_wat**(molefrac*alpha)*do_som**(1._sp-molefrac*alpha)
         else
                 print*, "selected compound not found"
+                stop
         end if
 
     end subroutine Price2015
@@ -438,20 +444,21 @@
 
         select case (compound)
             case (1) !sucrose
-                a = -30.97
-                b = 54.89
-                c = -62.34
-                d = 29.12
+                a = -30.97_sp
+                b = 54.89_sp
+                c = -62.34_sp
+                d = 29.12_sp
         case (2) !water
-                a = -20.89
-                b = 25.92
-                c = -26.97
-                d = 13.35
-            case default
+                a = -20.89_sp
+                b = 25.92_sp
+                c = -26.97_sp
+                d = 13.35_sp
+        case default
             print*, "selected compound not found"
+            stop
         end select
     
-        d_coeff = 10.**(a+b*molefrac+c*molefrac**2.+d*molefrac**3.)
+        d_coeff = 10._sp**(a+b*molefrac+c*molefrac**2.+d*molefrac**3.)
 
     end subroutine Price2016
 
@@ -481,24 +488,25 @@
 
         ! sucrose
         if (compound==1) then  
-                a = -1.
-                b = -0.99721
-                c = 0.13599
-                d = 0.001688
-                e = -0.005151
-                f = 0.009607
-                g = -0.006142
-                t_theta = 298.15		! kelvin, 160<T<313
+                a = -1._sp
+                b = -0.99721_sp
+                c = 0.13599_sp
+                d = 0.001688_sp
+                e = -0.005151_sp
+                f = 0.009607_sp
+                g = -0.006142_sp
+                t_theta = 298.15_sp		! kelvin, 160<T<313
             molefracd=1-molefrac
-                aw = (1.+a*molefracd)/(1.+b*molefracd+c*molefracd**2.) &
-                +(t-t_theta)*(d*molefracd+e*molefracd**2.+ &
-                f*molefracd**3+g*molefracd**4)
-                ad = 7.+0.175*(1.-46.46*(1.-aw))
-                bd = 262.867*(1.+10.53*(1.-aw)-0.3*(1.-aw)**2.)
-                to = 127.9*(1.+0.4514*(1.-aw)-0.51*(1.-aw)**1.7) 
-                d_coeff = 10.**( -(ad+(bd/(t-to))) )
+                aw = (1._sp+a*molefracd)/(1._sp+b*molefracd+c*molefracd**2._sp) &
+                +(t-t_theta)*(d*molefracd+e*molefracd**2._sp+ &
+                f*molefracd**3._sp+g*molefracd**4._sp)
+                ad = 7._sp+0.175_sp*(1._sp-46.46_sp*(1.-aw))
+                bd = 262.867_sp*(1.+10.53_sp*(1._sp-aw)-0.3_sp*(1._sp-aw)**2._sp)
+                to = 127.9_sp*(1._sp+0.4514_sp*(1._sp-aw)-0.51_sp*(1._sp-aw)**1.7_sp) 
+                d_coeff = 10._sp**( -(ad+(bd/(t-to))) )
         else
             print*, 'selected compound not found'
+            stop
         end if
 
     end subroutine Zobrist2011
@@ -535,15 +543,15 @@
         ! alpha-pinene
         if (compound==1) then
     
-                rho1 = 1000. 	! kg/m^3
-                rho1 = 1. 	! g/cm^3
-                rho2 = 858. 	! kg/m^3
-                rho2 = rho2/1.e3 ! g/cm^3
-                m1 = 18.02 	! g/mol
-                m2 = 136.23 	! g/mol
+                rho1 = 1000._sp 	! kg/m^3
+                rho1 = 1._sp 	! g/cm^3
+                rho2 = 858._sp 	! kg/m^3
+                rho2 = rho2/1.e3_sp ! g/cm^3
+                m1 = 18.02_sp 	! g/mol
+                m2 = 136.23_sp 	! g/mol
     
                 v1 = molefrac*m1/rho1
-                v2 = (1.-molefrac)*m2/rho2
+                v2 = (1._sp-molefrac)*m2/rho2
     
                 volf = v1/(v1+v2)
                 !volf = molefrac
@@ -551,14 +559,15 @@
                 d12 = d_self(1)
                 d11 = d_self(2)
 
-                d12d = (z*(1.-volf)/2./f-1.)*d12
-                d11d = (z*volf/2./f-1.)*d11
+                d12d = (z*(1._sp-volf)/2._sp/f-1._sp)*d12
+                d11d = (z*volf/2._sp/f-1._sp)*d11
 
-                d_coeff = (d12d+d11d+sqrt((d12d+d11d)**2.+2.*(z-2.)*d12*d11))/(z-2)
+                d_coeff = (d12d+d11d+sqrt((d12d+d11d)**2._sp+ &
+                    2._sp*(z-2._sp)*d12*d11))/(z-2._sp)
 
         else
             print*, 'selected compound not found'
-
+            stop
         end if
 
     end subroutine Shiraiwa2013
