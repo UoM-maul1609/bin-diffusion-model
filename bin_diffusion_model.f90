@@ -263,77 +263,83 @@
         
         
         ! diffusion out-side of solver
-        do j=1,n_bins
-            grida(j)%c=grida(j)%cold
-            grida(j)%kp_cur=grida(j)%kp_cur_old
-            grida(j)%rad=grida(j)%rad_old
-            grida(j)%r=grida(j)%r_old
-            grida(j)%r05=grida(j)%r05_old
-            grida(j)%dr=grida(j)%dr_old
-            grida(j)%dr05=grida(j)%dr05_old
-            grida(j)%vol=grida(j)%vol_old
-            
-            
-!             deltaV=max(parcel1%y(j)-parcel1%yold(j),-parcel1%y(j))/rhow
-            deltaV=(parcel1%y(j)-&
-                sum(grida(j)%c(1:grida(j)%kp_cur,1)* &
-                grida(j)%vol(1:grida(j)%kp_cur))*molw_water) /rhow
-        
-			!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-			! shift radii and calculate the velocity of boundaries                       !
-			!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
- 			call move_boundary(grida(j)%kp,grida(j)%kp_cur,parcel1%dt, &
- 			    radiusold,radius,grida(j)%r,grida(j)%r05,grida(j)%dr,grida(j)%dr05, &
- 			    grida(j)%vol,grida(j)%u,grida(j)%c,flux, &
- 			    grida(j)%rad_min,grida(j)%rad_max, grida(j)%mwsol, grida(j)%rhosol, &
- 			    deltaV)
-            radiusold=radius
-			!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-
-
-
-			!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-			! Set diffusion coefficients - inc. zero at boundary                         !
-			!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-			select case (diffusion_type)
-			    case(0)
-			        grida(j)%d05(:)=grida(j)%d_coeff
-			    case(1)
-			        call diffusion_coefficient(grida(j)%kp_cur, &
-			                grida(j)%c(1:grida(j)%kp_cur,1) / &
-			                    sum(grida(j)%c(1:grida(j)%kp_cur,:),2), &
-			                grida(j)%t, d_self, param, &
-			                compound, grida(j)%d05(1:grida(j)%kp_cur))
-			    case default
-			        print *,'error diffusion type'
-			        stop
-			end select
-			grida(j)%d05(grida(j)%kp_cur:grida(j)%kp) = 0._sp
-			!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-
-
-
-
-			!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-			! solve diffusion equation                                                   !
-			!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-			call backward_euler(grida(j)%kp,grida(j)%kp_cur,parcel1%dt, &
-			    grida(j)%r,grida(j)%r05,grida(j)%u,grida(j)%d,grida(j)%d05,&
-			    grida(j)%dr,grida(j)%dr05,grida(j)%c,grida(j)%cold,flux)
-			!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        
-!             parcel1%y(j)=sum(grida(j)%vol(1:grida(j)%kp_cur) * &
-!                     grida(j)%c(1:grida(j)%kp_cur,1) )*molw_water
-        enddo
+!         do j=1,n_bins
+!             grida(j)%c=grida(j)%cold
+!             grida(j)%kp_cur=grida(j)%kp_cur_old
+!             grida(j)%rad=grida(j)%rad_old
+!             grida(j)%r=grida(j)%r_old
+!             grida(j)%r05=grida(j)%r05_old
+!             grida(j)%dr=grida(j)%dr_old
+!             grida(j)%dr05=grida(j)%dr05_old
+!             grida(j)%vol=grida(j)%vol_old
+!             
+!             
+! !             deltaV=max(parcel1%y(j)-parcel1%yold(j),-parcel1%y(j))/rhow
+!             deltaV=(parcel1%y(j)-&
+!                 sum(grida(j)%c(1:grida(j)%kp_cur,1)* &
+!                 grida(j)%vol(1:grida(j)%kp_cur))*molw_water) /rhow
+!         
+! 			!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! 			! shift radii and calculate the velocity of boundaries                       !
+! 			!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!  			call move_boundary(grida(j)%kp,grida(j)%kp_cur,parcel1%dt, &
+!  			    radiusold,radius,grida(j)%r,grida(j)%r05,grida(j)%dr,grida(j)%dr05, &
+!  			    grida(j)%vol,grida(j)%u,grida(j)%c,flux, &
+!  			    grida(j)%rad_min,grida(j)%rad_max, grida(j)%mwsol, grida(j)%rhosol, &
+!  			    deltaV)
+!             radiusold=radius
+! 			!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! 
+! 
+! 
+! 
+! 			!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! 			! Set diffusion coefficients - inc. zero at boundary                         !
+! 			!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! 			select case (diffusion_type)
+! 			    case(0)
+! 			        grida(j)%d05(:)=grida(j)%d_coeff
+! 			    case(1)
+! 			        call diffusion_coefficient(grida(j)%kp_cur, &
+! 			                grida(j)%c(1:grida(j)%kp_cur,1) / &
+! 			                    sum(grida(j)%c(1:grida(j)%kp_cur,:),2), &
+! 			                grida(j)%t, d_self, param, &
+! 			                compound, grida(j)%d05(1:grida(j)%kp_cur))
+! 			    case default
+! 			        print *,'error diffusion type'
+! 			        stop
+! 			end select
+! 			grida(j)%d05(grida(j)%kp_cur:grida(j)%kp) = 0._sp
+! 			!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! 
+! 
+! 
+! 
+! 
+! 			!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! 			! solve diffusion equation                                                   !
+! 			!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! 			call backward_euler(grida(j)%kp,grida(j)%kp_cur,parcel1%dt, &
+! 			    grida(j)%r,grida(j)%r05,grida(j)%u,grida(j)%d,grida(j)%d05,&
+! 			    grida(j)%dr,grida(j)%dr05,grida(j)%c,grida(j)%cold,flux)
+! 			!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!         
+! !             parcel1%y(j)=sum(grida(j)%vol(1:grida(j)%kp_cur) * &
+! !                     grida(j)%c(1:grida(j)%kp_cur,1) )*molw_water
+!         enddo
         
         ! check there are no negative values
-        where(parcel1%y(1:parcel1%n_bin_mode).le.0.e1_sp)
-            parcel1%y(1:parcel1%n_bin_mode)=1.e-22_sp
-        end where
+!         where(parcel1%y(1:parcel1%n_bin_mode).le.0.e1_sp)
+!             parcel1%y(1:parcel1%n_bin_mode)=1.e-22_sp
+!         end where
 
-             
+        do j=1,parcel1%n_bin_mode
+            if(parcel1%y(j).le.0.e1_sp) then
+                parcel1%y(j)=sum(grida(j)%c(1:grida(j)%kp_cur,1)* &
+                                            grida(j)%vol(1:grida(j)%kp_cur))*molw_water
+            endif
+        enddo
+        
         ! break-out if flag has been set 
         if(parcel1%break_flag) exit
     enddo
@@ -452,9 +458,9 @@
     
 
         ! check there are no negative values
-        where(y(1:ipart).le.0._sp)
-            y(1:ipart)=1.e-22_sp
-        end where
+!         where(y(1:ipart).le.0._sp)
+!             y(1:ipart)=abs(y(1:ipart))
+!         end where
 
 
         ! calculate mixing ratios from rh, etc
@@ -488,7 +494,7 @@
             nwo(i)=grida(i)%c(grida(i)%kp_cur,1)
             nso(i,1)=grida(i)%c(grida(i)%kp_cur,2)
 
-            if(parcel1%npart(i).le. 1.e-9_sp) cycle
+            !if(parcel1%npart(i).le. 1.e-9_sp) cycle
             
 !             deltaV=max(y(i)- &
 !                 sum(grida(i)%c(1:grida(i)%kp_cur,1)*grida(i)%vol(1:grida(i)%kp_cur))*molw_water &
@@ -508,42 +514,45 @@
             radiusold=radius
 			!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-			!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-			! Set diffusion coefficients - inc. zero at boundary                         !
-			!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-			select case (diffusion_type)
-			    case(0)
-			        grida(i)%d05(:)=grida(i)%d_coeff
-			    case(1)
-			        call diffusion_coefficient(grida(i)%kp_cur, &
-			                grida(i)%cold(1:grida(i)%kp_cur,1) / &
-			                    sum(grida(i)%cold(1:grida(i)%kp_cur,:),2), &
-			                grida(i)%t, d_self, param, &
-			                compound, grida(i)%d05(1:grida(i)%kp_cur))
-			    case default
-			        print *,'error diffusion type'
-			        stop
-			end select
-			grida(i)%d05(grida(i)%kp_cur:grida(i)%kp) = 0._sp
 
 
 
-			!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-			! solve diffusion equation                                                   !
-			!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-			call backward_euler(grida(i)%kp,grida(i)%kp_cur,tt-tstart, &
-			    grida(i)%r,grida(i)%r05,grida(i)%u,grida(i)%d,grida(i)%d05,&
-			    grida(i)%dr,grida(i)%dr05,grida(i)%c,grida(i)%cold,flux)
-			!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+			do j=1,10
+                !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                ! Set diffusion coefficients - inc. zero at boundary                     !
+                !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                select case (diffusion_type)
+                    case(0)
+                        grida(i)%d05(:)=grida(i)%d_coeff
+                    case(1)
+                        call diffusion_coefficient(grida(i)%kp_cur, &
+                                grida(i)%c(1:grida(i)%kp_cur,1) / &
+                                    sum(grida(i)%c(1:grida(i)%kp_cur,:),2), &
+                                grida(i)%t, d_self, param, &
+                                compound, grida(i)%d05(1:grida(i)%kp_cur))
+                    case default
+                        print *,'error diffusion type'
+                        stop
+                end select
+                grida(i)%d05(grida(i)%kp_cur:grida(i)%kp) = 0._sp
+                
+                !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                ! solve diffusion equation                                               !
+                !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                call backward_euler(grida(i)%kp,grida(i)%kp_cur,(tt-tstart)/10._sp, &
+                    grida(i)%r,grida(i)%r05,grida(i)%u,grida(i)%d,grida(i)%d05,&
+                    grida(i)%dr,grida(i)%dr05,grida(i)%c,grida(i)%cold,flux)
+                !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            enddo        
 
-            nwo(i)=grida(i)%c(grida(i)%kp_cur,1)/sum(grida(i)%c(1:grida(i)%kp_cur,1)) *y(i)/molw_water
-            nso(i,1)=grida(i)%c(grida(i)%kp_cur,2)/ &
-                sum(grida(i)%c(1:grida(i)%kp_cur,2)) *parcel1%mbin(i,1)/parcel1%molwbin(i,1)
-            
+
+            nwo(i)=grida(i)%c(grida(i)%kp_cur,1)*grida(i)%vol(grida(i)%kp_cur)/ &
+                sum(grida(i)%c(1:grida(i)%kp_cur,1)*grida(i)%vol(grida(i)%kp_cur)) *y(i)/molw_water
+            nso(i,1)=grida(i)%c(grida(i)%kp_cur,2)*grida(i)%vol(grida(i)%kp_cur)/ &
+                sum(grida(i)%c(1:grida(i)%kp_cur,2)*grida(i)%vol(grida(i)%kp_cur)) *parcel1%mbin(i,1)/parcel1%molwbin(i,1)
+        enddo
 !             nwo(i)=y(i)/molw_water
 !             nso(i,1)=parcel1%mbin(i,1)/parcel1%molwbin(i,1)
-        enddo        
-
 
         ! calculate equilibrium rhs
         select case (kappa_flag)
@@ -556,7 +565,7 @@
                            parcel1%rh_eq,parcel1%rhoat, parcel1%dw) 
                            
                     case(1) ! just use water in outer shell
-                        call koehler01_diff(t,y(1:ipart),parcel1%mbin(1:ipart,1:n_comps), &
+                        call koehler01_diff(t,abs(y(1:ipart)),parcel1%mbin(1:ipart,1:n_comps), &
                            nwo,nso, &
                            parcel1%rhobin(1:ipart,1:n_comps), parcel1%nubin(1:ipart,1:n_comps), &
                            parcel1%molwbin(1:ipart,1:n_comps),ipart, &

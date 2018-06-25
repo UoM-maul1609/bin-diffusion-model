@@ -3,7 +3,7 @@
 
 &dc_vars
 	d_self(1:2)=1.e-9, 1.e-9,	! organic, water
-	param=1,	! see notes below, eg 5=Lienhard2015	
+	param=5,	! see notes below, eg 5=Lienhard2015	
 	compound=5/	! see notes below, eg 5=alpha-pinene (for Lienhard2015)
 
 
