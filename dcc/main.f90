@@ -32,7 +32,7 @@
 
 
         ! calculate and print diffusion coefficients
-        call diffusion_coefficient(kp, molefrac, t, d_self, param, compound, d_coeff)
+        call diffusion_coefficient(kp, 2,molefrac, t, d_self, param, compound, d_coeff)
 
         print*, 'molefrac', ':', 'd_coeff'
             do i=1,kp
