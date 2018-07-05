@@ -64,20 +64,21 @@
     !>@brief
     !>read in the data from the namelists for diffusion coefficients
     !>@param[in] kp: number of grid points / shells
+    !>@param[in] n_comps: number of compositions (including water)
     !>@param[in] molefrac: water molefraction
     !>@param[in] t: temperature
     !>@param[in] d_self: self diffusion coefficients
     !>@param[in] param: parameterisation type
     !>@param[in] compound: organic component of aerosol
     !>@param[inout] d_coeff: mutual diffusion coefficient
-    subroutine diffusion_coefficient(kp, molefrac, t, &
+    subroutine diffusion_coefficient(kp, n_comps, molefrac, t, &
                                 d_self, param, compound, d_coeff)
         implicit none
-        integer(i4b), intent(in) :: kp, param, compound
+        integer(i4b), intent(in) :: kp, n_comps, param, compound
         real(sp), intent(in) :: t
         real(sp), dimension(kp), intent(in) :: molefrac
         real(sp), dimension (kp), intent(inout) :: d_coeff
-        real(sp), dimension (kp), intent(in) :: d_self
+        real(sp), dimension (n_comps), intent(in) :: d_self
 
 
         select case (param)
