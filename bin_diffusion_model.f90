@@ -233,6 +233,12 @@
     real(sp) :: flux,deltaV, radius, radiusold, t_tstep
     
     
+    ! reduce tolerances for this model:
+    parcel1%rtol=1.e-6_sp
+    parcel1%atol(1:parcel1%n_bin_mode)=1.e-30_sp
+    
+    
+    
     nt=ceiling(runtime / real(dt,kind=sp))
     do i=1,nt
         t_tstep=parcel1%y(parcel1%ite) ! use a constant temperature for the diffusion 
@@ -524,17 +530,24 @@
                 select case (diffusion_type)
                     case(0)
                         grida(i)%d05(:)=grida(i)%d_coeff
+                        grida(i)%d05(grida(i)%kp_cur:grida(i)%kp+1) = 0._sp
                     case(1)
-                        call diffusion_coefficient(grida(i)%kp_cur, &
+                        call diffusion_coefficient(grida(i)%kp_cur,n_comps+1, &
                                 grida(i)%c(1:grida(i)%kp_cur,1) / &
                                     sum(grida(i)%c(1:grida(i)%kp_cur,:),2), &
                                 grida(i)%t, d_self, param, &
                                 compound, grida(i)%d05(1:grida(i)%kp_cur))
+                                
+!                         grida(i)%d05(0) = grida(i)%d05(1)
+!                         grida(i)%d05(1:grida(i)%kp_cur-1)= &
+!                             0.5_sp*(grida(i)%d05(1:grida(i)%kp_cur-1)+ &
+!                                     grida(i)%d05(2:grida(i)%kp_cur))
+                        grida(i)%d05(grida(i)%kp_cur:grida(i)%kp+1) = 0._sp
+                        grida(i)%d05(0) = grida(i)%d05(1)
                     case default
                         print *,'error diffusion type'
                         stop
                 end select
-                grida(i)%d05(grida(i)%kp_cur:grida(i)%kp) = 0._sp
                 
                 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                 ! solve diffusion equation                                               !
@@ -546,13 +559,13 @@
             enddo        
 
 
-            nwo(i)=grida(i)%c(grida(i)%kp_cur,1)*grida(i)%vol(grida(i)%kp_cur)/ &
-                sum(grida(i)%c(1:grida(i)%kp_cur,1)*grida(i)%vol(grida(i)%kp_cur)) *y(i)/molw_water
-            nso(i,1)=grida(i)%c(grida(i)%kp_cur,2)*grida(i)%vol(grida(i)%kp_cur)/ &
-                sum(grida(i)%c(1:grida(i)%kp_cur,2)*grida(i)%vol(grida(i)%kp_cur)) *parcel1%mbin(i,1)/parcel1%molwbin(i,1)
+ !            nwo(i)=grida(i)%c(grida(i)%kp_cur,1)*grida(i)%vol(grida(i)%kp_cur)/ &
+!                 sum(grida(i)%c(1:grida(i)%kp_cur,1)*grida(i)%vol(grida(i)%kp_cur)) *y(i)/molw_water
+!             nso(i,1)=grida(i)%c(grida(i)%kp_cur,2)*grida(i)%vol(grida(i)%kp_cur)/ &
+!                 sum(grida(i)%c(1:grida(i)%kp_cur,2)*grida(i)%vol(grida(i)%kp_cur)) *parcel1%mbin(i,1)/parcel1%molwbin(i,1)
+            nwo(i)=grida(i)%c(grida(i)%kp_cur,1)*grida(i)%vol(grida(i)%kp_cur)
+            nso(i,1)=grida(i)%c(grida(i)%kp_cur,2)*grida(i)%vol(grida(i)%kp_cur)
         enddo
-!             nwo(i)=y(i)/molw_water
-!             nso(i,1)=parcel1%mbin(i,1)/parcel1%molwbin(i,1)
 
         ! calculate equilibrium rhs
         select case (kappa_flag)
