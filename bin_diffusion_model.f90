@@ -667,6 +667,9 @@
         if((.not. adiabatic_prof) .and. (.not. vert_ent)) then ! entraining?
             ydot(ite)=ydot(ite)+w*ent_rate*(te-y(ite) + lv/cpm*(qve-wv))
             !ydot(iw) = b -w*ent_rate*y(iw)
+            ydot(iw) = 0._sp
+        else
+            ydot(iw) = 0._sp
         endif
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
