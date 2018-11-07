@@ -2774,8 +2774,7 @@
         call check( nf90_put_att(io1%ncid, io1%a_dimid, &
                    "units", "kg") )
                    
-                   
-                   
+                                   
         if(ice_flag .eq. 1) then
             ! define variable: qi
             call check( nf90_def_var(io1%ncid, "qi", NF90_DOUBLE, &
@@ -2794,7 +2793,17 @@
             call check( nf90_inq_varid(io1%ncid, "nice", io1%a_dimid) )
             ! units
             call check( nf90_put_att(io1%ncid, io1%a_dimid, &
-                       "units", "m-3") )   
+                       "units", "m-3") )
+					   
+			! define variable: mice
+			call check( nf90_def_var(io1%ncid, "mice", NF90_DOUBLE, &
+						(/io1%bin_dimid,io1%x_dimid/), io1%varid) )
+			! get id to a_dimid
+			call check( nf90_inq_varid(io1%ncid, "mice", io1%a_dimid) )
+			! units
+			call check( nf90_put_att(io1%ncid, io1%a_dimid, &
+					   "units", "kg") )
+				   
         endif
         
         call check( nf90_enddef(io1%ncid) )
@@ -2836,7 +2845,6 @@
     call check( nf90_put_var(io1%ncid, io1%varid, parcel1%y(parcel1%iw), &
                 start = (/io1%icur/)))
 
-
     ! write variable: ql
     call check( nf90_inq_varid(io1%ncid, "ql", io1%varid ) )
     call check( nf90_put_var(io1%ncid, io1%varid, &
@@ -2871,7 +2879,8 @@
             6._sp/(rhow*pi))**(2._sp/3._sp)*  &
             parcel1%npart(1:parcel1%n_bin_mode)), &
                 start = (/io1%icur/)))
-
+	
+	! write variable: mwat
     call check( nf90_inq_varid(io1%ncid, "mwat", io1%varid ) )
     call check( nf90_put_var(io1%ncid, io1%varid, &
         parcel1%y(1:parcel1%n_bin_mode), start = (/1,io1%icur/)))
@@ -2889,6 +2898,11 @@
         call check( nf90_inq_varid(io1%ncid, "nice", io1%varid ) )
         call check( nf90_put_var(io1%ncid, io1%varid, &
             sum(parcel1%nice), start = (/io1%icur/)))
+			
+		! write variable: mice
+		call check( nf90_inq_varid(io1%ncid, "mice", io1%varid ) )
+		call check( nf90_put_var(io1%ncid, io1%varid, &
+			parcel1%yice(1:parcel1%n_bin_mode), start = (/1,io1%icur/)))
     
     endif
     
