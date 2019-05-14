@@ -522,8 +522,7 @@
 
 
 
-
-			do j=1,10
+			do j=1,1
                 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                 ! Set diffusion coefficients - inc. zero at boundary                     !
                 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -552,7 +551,7 @@
                 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                 ! solve diffusion equation                                               !
                 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-                call backward_euler(grida(i)%kp,grida(i)%kp_cur,(tt-tstart)/10._sp, &
+                call backward_euler(grida(i)%kp,grida(i)%kp_cur,(tt-tstart)/1._sp, &
                     grida(i)%r,grida(i)%r05,grida(i)%u,grida(i)%d,grida(i)%d05,&
                     grida(i)%dr,grida(i)%dr05,grida(i)%c,grida(i)%cold,flux)
                 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
