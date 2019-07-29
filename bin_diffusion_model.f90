@@ -3,8 +3,8 @@
 	!>@brief
 	!>module for bin microphysics with diffusion model
 	module bdm
-    use nrtype
-    use nr, only : locate, polint
+    use numerics_type
+    use numerics, only : find_pos, poly_int
     use diffusion, only : grid, backward_euler, move_boundary
     use bmm
     use diffusion_coefficients 
@@ -21,13 +21,13 @@
                             
         type(grid), allocatable, dimension(:) :: grida
         
-        real(sp), allocatable, dimension(:) :: nwo, jw, nw,ns, aw
-        real(sp), allocatable, dimension(:,:) :: nso
+        real(wp), allocatable, dimension(:) :: nwo, jw, nw,ns, aw
+        real(wp), allocatable, dimension(:,:) :: nso
         integer(i4b) :: koehler_shell_flag
         integer(i4b) :: diffusion_type
         
         ! for calculating diffusion coefficients
-        real(sp), allocatable, dimension (:) :: d_self
+        real(wp), allocatable, dimension (:) :: d_self
         integer(i4b) :: n_compsw, & ! number of compositions (including water)
                         param, & ! type of parameterisation for diffusion coefficients
                         compound ! compound for diffusion coefficients
@@ -116,7 +116,7 @@
                 d_self, param, compound)
         implicit none
         integer(i4b), intent(out) :: n_comp, param, compound
-        real(sp), allocatable, dimension (:), intent(out) :: d_self
+        real(wp), allocatable, dimension (:), intent(out) :: d_self
         character (len=*), intent(in) :: nmlfile
 
         ! define namelists
@@ -142,8 +142,8 @@
 	!>@brief
 	!>sets up the arrays
     subroutine initialise_bdm_arrays()
-        use nrtype
-        use nr, only : locate, polint, rkqs, odeint, zbrent, brent
+        use numerics_type
+        use numerics, only : find_pos, poly_int, vode_integrate, zeroin, fmin
         use bmm, only : initialise_bmm_arrays, nu_core1
         use diffusion, only : allocate_and_set_diff, nmd, gridd
 
@@ -190,8 +190,8 @@
         
         do i=1,n_bins
             call allocate_and_set_diff(nmd%kp,nmd%dt,nmd%runtime, &
-!                parcel1%dw(i)/2._sp, nmd%rad_min, nmd%rad_max, nmd%t,nmd%p, parcel1%rh, &
-                parcel1%dw(i)/2._sp, nmd%rad_min, nmd%rad_max, nmd%t,nmd%p, &
+!                parcel1%dw(i)/2._wp, nmd%rad_min, nmd%rad_max, nmd%t,nmd%p, parcel1%rh, &
+                parcel1%dw(i)/2._wp, nmd%rad_min, nmd%rad_max, nmd%t,nmd%p, &
                 parcel1%mbin(i,n_comps+1)/molw_water/ &
                     (parcel1%mbin(i,n_comps+1)/molw_water + &
                      parcel1%mbin(i,1)/parcel1%molwbin(i,1)*parcel1%nubin(i,1)), &
@@ -225,21 +225,21 @@
 	!>@brief
 	!>driver for the bin diffusion model
     subroutine bdm_driver()
-    use nrtype
+    use numerics_type
     use bmm, only : parcel, parcel1
     implicit none
     integer(i4b) :: i, j,nt
     logical :: new_file=.true.
-    real(sp) :: flux,deltaV, radius, radiusold, t_tstep
+    real(wp) :: flux,deltaV, radius, radiusold, t_tstep
     
     
     ! reduce tolerances for this model:
-    parcel1%rtol=1.e-6_sp
-    parcel1%atol(1:parcel1%n_bin_mode)=1.e-30_sp
+    parcel1%rtol=1.e-6_wp
+    parcel1%atol(1:parcel1%n_bin_mode)=1.e-30_wp
     
     
     
-    nt=ceiling(runtime / real(dt,kind=sp))
+    nt=ceiling(runtime / real(dt,kind=wp))
     do i=1,nt
         t_tstep=parcel1%y(parcel1%ite) ! use a constant temperature for the diffusion 
                                        ! over the time-step
@@ -315,7 +315,7 @@
 ! 			        print *,'error diffusion type'
 ! 			        stop
 ! 			end select
-! 			grida(j)%d05(grida(j)%kp_cur:grida(j)%kp) = 0._sp
+! 			grida(j)%d05(grida(j)%kp_cur:grida(j)%kp) = 0._wp
 ! 			!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! 
 ! 
@@ -335,12 +335,12 @@
 !         enddo
         
         ! check there are no negative values
-!         where(parcel1%y(1:parcel1%n_bin_mode).le.0.e1_sp)
-!             parcel1%y(1:parcel1%n_bin_mode)=1.e-22_sp
+!         where(parcel1%y(1:parcel1%n_bin_mode).le.0.e1_wp)
+!             parcel1%y(1:parcel1%n_bin_mode)=1.e-22_wp
 !         end where
 
         do j=1,parcel1%n_bin_mode
-            if(parcel1%y(j).le.0.e1_sp) then
+            if(parcel1%y(j).le.0.e1_wp) then
                 parcel1%y(j)=sum(grida(j)%c(1:grida(j)%kp_cur,1)* &
                                             grida(j)%vol(1:grida(j)%kp_cur))*molw_water
             endif
@@ -379,15 +379,15 @@
 	!>@param[inout] rhoat: density of particle
 	!>@param[inout] dw: wet diameter
     subroutine koehler01_diff(t,mwat,mbin,nwo,nso,rhobin,nubin,molwbin,sz,rh_eq,rhoat,dw) 
-      use nrtype
+      use numerics_type
       implicit none
-      real(sp), dimension(:), intent(in) :: mwat, nwo
-      real(sp), dimension(:,:), intent(in) :: mbin,rhobin,nubin,molwbin,nso
+      real(wp), dimension(:), intent(in) :: mwat, nwo
+      real(wp), dimension(:,:), intent(in) :: mbin,rhobin,nubin,molwbin,nso
       integer(i4b), intent(in) :: sz
-      real(sp), dimension(sz) :: nw, fac
-      real(sp), dimension(:),intent(inout) :: rh_eq,rhoat, dw
-      real(sp), intent(in) :: t
-      real(sp) :: sigma
+      real(wp), dimension(sz) :: nw, fac
+      real(wp), dimension(:),intent(inout) :: rh_eq,rhoat, dw
+      real(wp), intent(in) :: t
+      real(wp) :: sigma
 
       ! calculate the diameter and radius
       nw(:)=mwat(:)/molw_water
@@ -395,19 +395,19 @@
       rhoat(:)=(mwat(:)+sum(mbin(:,1:n_comps),2))/rhoat(:);
   
       ! wet diameter:
-      dw(:)=((mwat(:)+sum(mbin(:,1:n_comps),2))*6._sp/(pi*rhoat(:)))**(1._sp/3._sp)
+      dw(:)=((mwat(:)+sum(mbin(:,1:n_comps),2))*6._wp/(pi*rhoat(:)))**(1._wp/3._wp)
   
       ! calculate surface tension
       sigma=surface_tension(t)
         
-      !fac(:)=1._sp+max(sum(nso(:,:)*nubin(:,:),2)/nwo(:),0.1_sp)
+      !fac(:)=1._wp+max(sum(nso(:,:)*nubin(:,:),2)/nwo(:),0.1_wp)
       
       ! equilibrium rh over particle - nb rh_act set to zero if not root-finding
-      rh_eq(:)=exp(4._sp*molw_water*sigma/r_gas/t/rhoat(:)/dw(:))* &
+      rh_eq(:)=exp(4._wp*molw_water*sigma/r_gas/t/rhoat(:)/dw(:))* &
            (nwo(:))/(nwo(:)+sum(nso(:,:)*nubin(:,:),2) ) 
        
        
-!       rh_eq(:)=exp(4._sp*molw_water*sigma/r_gas/t/rhoat(:)/dw(:))/ fac(:)
+!       rh_eq(:)=exp(4._wp*molw_water*sigma/r_gas/t/rhoat(:)/dw(:))/ fac(:)
        
 
     end subroutine koehler01_diff
@@ -428,23 +428,23 @@
 	!>@param[in] rpar: real data coming in
 	!>@param[in] ipar: integer data coming in
     subroutine fparcelwarmdiff(neq, tt, y, ydot, rpar, ipar)
-        use nrtype
-        use nr, only : dfridr,locate
+        use numerics_type
+        use numerics, only : dfsid1,find_pos
 
         implicit none
-        real(sp), intent(inout) :: tt
-        real(sp), intent(inout), dimension(neq) :: y, ydot
+        real(wp), intent(inout) :: tt
+        real(wp), intent(inout), dimension(neq) :: y, ydot
         integer(i4b), intent(inout) :: neq
-        real(sp), intent(inout) :: rpar
+        real(wp), intent(inout) :: rpar
         integer(i4b), intent(inout) :: ipar
 
         ! local variables
-        real(sp) :: wv=0._sp, wl=0._sp, wi=0._sp, rm, cpm, &
-                  drv=0._sp, dri=0._sp,dri2=0._sp, &
+        real(wp) :: wv=0._wp, wl=0._wp, wi=0._wp, rm, cpm, &
+                  drv=0._wp, dri=0._wp,dri2=0._wp, &
                   rh,t,p,err,sl, w, &
                   te, qve, pe, var, dummy, rhoe, rhop, b
         ! diffusion:
-        real(sp) :: tstart, deltaV,flux,radius,radiusold
+        real(wp) :: tstart, deltaV,flux,radius,radiusold
 
         integer(i4b) :: i, j,iloc, ipart, ipr, ite, irh, iz,iw
 
@@ -464,14 +464,14 @@
     
 
         ! check there are no negative values
-!         where(y(1:ipart).le.0._sp)
+!         where(y(1:ipart).le.0._wp)
 !             y(1:ipart)=abs(y(1:ipart))
 !         end where
 
 
         ! calculate mixing ratios from rh, etc
         sl=svp_liq(t)*rh/(p-svp_liq(t)) ! saturation ratio
-        sl=(sl*p/(1._sp+sl))/svp_liq(t)
+        sl=(sl*p/(1._wp+sl))/svp_liq(t)
         wv=eps1*rh*svp_liq(t) / (p-svp_liq(t)) ! vapour mixing ratio
         wl=sum(parcel1%npart*y(1:ipart))             ! liquid mixing ratio
 
@@ -500,7 +500,7 @@
             nwo(i)=grida(i)%c(grida(i)%kp_cur,1)
             nso(i,1)=grida(i)%c(grida(i)%kp_cur,2)
 
-            !if(parcel1%npart(i).le. 1.e-9_sp) cycle
+            !if(parcel1%npart(i).le. 1.e-9_wp) cycle
             
 !             deltaV=max(y(i)- &
 !                 sum(grida(i)%c(1:grida(i)%kp_cur,1)*grida(i)%vol(1:grida(i)%kp_cur))*molw_water &
@@ -511,7 +511,7 @@
 			!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 			! shift radii and calculate the velocity of boundaries                       !
 			!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-			flux=0._sp
+			flux=0._wp
  			call move_boundary(grida(i)%kp,grida(i)%kp_cur,tt-tstart, &
  			    radiusold,radius,grida(i)%r,grida(i)%r05,grida(i)%dr,grida(i)%dr05, &
  			    grida(i)%vol,grida(i)%u,grida(i)%c,flux, &
@@ -529,7 +529,7 @@
                 select case (diffusion_type)
                     case(0)
                         grida(i)%d05(:)=grida(i)%d_coeff
-                        grida(i)%d05(grida(i)%kp_cur:grida(i)%kp+1) = 0._sp
+                        grida(i)%d05(grida(i)%kp_cur:grida(i)%kp+1) = 0._wp
                     case(1)
                         call diffusion_coefficient(grida(i)%kp_cur,n_comps+1, &
                                 grida(i)%c(1:grida(i)%kp_cur,1) / &
@@ -539,9 +539,9 @@
                                 
 !                         grida(i)%d05(0) = grida(i)%d05(1)
 !                         grida(i)%d05(1:grida(i)%kp_cur-1)= &
-!                             0.5_sp*(grida(i)%d05(1:grida(i)%kp_cur-1)+ &
+!                             0.5_wp*(grida(i)%d05(1:grida(i)%kp_cur-1)+ &
 !                                     grida(i)%d05(2:grida(i)%kp_cur))
-                        grida(i)%d05(grida(i)%kp_cur:grida(i)%kp+1) = 0._sp
+                        grida(i)%d05(grida(i)%kp_cur:grida(i)%kp+1) = 0._wp
                         grida(i)%d05(0) = grida(i)%d05(1)
                     case default
                         print *,'error diffusion type'
@@ -551,7 +551,7 @@
                 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                 ! solve diffusion equation                                               !
                 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-                call backward_euler(grida(i)%kp,grida(i)%kp_cur,(tt-tstart)/1._sp, &
+                call backward_euler(grida(i)%kp,grida(i)%kp_cur,(tt-tstart)/1._wp, &
                     grida(i)%r,grida(i)%r05,grida(i)%u,grida(i)%d,grida(i)%d05,&
                     grida(i)%dr,grida(i)%dr05,grida(i)%c,grida(i)%cold,flux)
                 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -605,14 +605,14 @@
         ! do not bother if number concentration too small
         do i=1,ipart
             if(isnan(parcel1%da_dt(i))) then
-              parcel1%da_dt(i)=0._sp
+              parcel1%da_dt(i)=0._wp
             endif
-!             if(isnan(parcel1%da_dt(i)).or.(parcel1%npart(i).le. 1.e-9_sp)) then
-!               parcel1%da_dt(i)=0._sp
+!             if(isnan(parcel1%da_dt(i)).or.(parcel1%npart(i).le. 1.e-9_wp)) then
+!               parcel1%da_dt(i)=0._wp
 !             endif
         enddo
 
-!         if((tt > 200._sp) ) then
+!         if((tt > 200._wp) ) then
 !             print *,nwo(40)/(nwo(40)+nso(40,1)), y(40),parcel1%da_dt(40),tt,y(irh), parcel1%rh_eq(40)
 !         endif
 
@@ -626,19 +626,19 @@
             ! parcel p, density
             ! buoyancy...
             ! locate position
-            iloc=locate(parcel1%z_sound(1:n_levels_s),y(iz))
+            iloc=find_pos(parcel1%z_sound(1:n_levels_s),y(iz))
             iloc=min(n_levels_s-1,iloc)
             iloc=max(1,iloc)
             ! linear interp p
-            call polint(parcel1%z_sound(iloc:iloc+1), parcel1%p_sound(iloc:iloc+1), &
+            call poly_int(parcel1%z_sound(iloc:iloc+1), parcel1%p_sound(iloc:iloc+1), &
                         min(y(iz),parcel1%z_sound(n_levels_s)), var,dummy)        
             pe=var
             ! linear interp qv
-            call polint(parcel1%z_sound(iloc:iloc+1), parcel1%q_sound(1,iloc:iloc+1), &
+            call poly_int(parcel1%z_sound(iloc:iloc+1), parcel1%q_sound(1,iloc:iloc+1), &
                         min(y(iz),parcel1%z_sound(n_levels_s)), var,dummy)        
             qve=var
             ! linear interp te
-            call polint(parcel1%z_sound(iloc:iloc+1), parcel1%t_sound(iloc:iloc+1), &
+            call poly_int(parcel1%z_sound(iloc:iloc+1), parcel1%t_sound(iloc:iloc+1), &
                         min(y(iz),parcel1%z_sound(n_levels_s)), var,dummy)        
             te=var
             ! env density:
@@ -648,7 +648,7 @@
             !buoyancy
             if((parcel1%z_sound(n_levels_s) .lt. y(iz)) .or. &
                 (parcel1%z_sound(1) .gt. y(iz))) then
-                b=0._sp
+                b=0._wp
             else
                 b=grav*(rhoe-rhop)/rhoe
             endif
@@ -666,9 +666,9 @@
         if((.not. adiabatic_prof) .and. (.not. vert_ent)) then ! entraining?
             ydot(ite)=ydot(ite)+w*ent_rate*(te-y(ite) + lv/cpm*(qve-wv))
             !ydot(iw) = b -w*ent_rate*y(iw)
-            ydot(iw) = 0._sp
+            ydot(iw) = 0._wp
         else
-            ydot(iw) = 0._sp
+            ydot(iw) = 0._wp
         endif
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -678,7 +678,7 @@
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         ydot(irh)=(p-svp_liq(t))*svp_liq(t)*drv
         ydot(irh)=ydot(irh)+svp_liq(t)*wv*ydot(ipr)
-        ydot(irh)=ydot(irh)-wv*p*dfridr(svp_liq,t,1.e0_sp,err)*ydot(ite)
+        ydot(irh)=ydot(irh)-wv*p*dfsid1(svp_liq,t,1.e0_wp,1.e-8_wp,err)*ydot(ite)
         ydot(irh)=ydot(irh) / (eps1*svp_liq(t)**2)
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
       
@@ -693,20 +693,20 @@
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     subroutine icenucleation_diff(npart, npartice, mwat,mbin2,mbin2_ice, &
                          rhobin,nubin,kappabin,molwbin,t,p,sz,sz2,yice,rh,dt) 
-      use nrtype
+      use numerics_type
       implicit none
-      real(sp), intent(inout) :: t
-      real(sp), intent(in) :: p,rh,dt
-      real(sp), dimension(sz2), intent(inout) :: npart,npartice
-      real(sp), dimension(:), intent(in) :: mwat
-      real(sp), dimension(:,:), intent(in) :: mbin2, &
+      real(wp), intent(inout) :: t
+      real(wp), intent(in) :: p,rh,dt
+      real(wp), dimension(sz2), intent(inout) :: npart,npartice
+      real(wp), dimension(:), intent(in) :: mwat
+      real(wp), dimension(:,:), intent(in) :: mbin2, &
                                               rhobin,nubin,kappabin,molwbin
       integer(i4b), intent(in) :: sz,sz2
-      real(sp), dimension(sz2) :: dn01,m01,dw,dd,kappa,rhoat
-      real(sp), dimension(sz2,sz) :: dmaer01
-      real(sp), dimension(sz2,sz), intent(inout) :: mbin2_ice
+      real(wp), dimension(sz2) :: dn01,m01,dw,dd,kappa,rhoat
+      real(wp), dimension(sz2,sz) :: dmaer01
+      real(wp), dimension(sz2,sz), intent(inout) :: mbin2_ice
       
-      real(sp), intent(inout), dimension(sz2) :: yice
+      real(wp), intent(inout), dimension(sz2) :: yice
       integer(i4b) :: i
       
       
@@ -734,15 +734,15 @@
               rhoat(i)=mwat(i)/rhow+sum(mbin2(i,:)/rhobin(i,:))
               rhoat(i)=(mwat(i)+sum(mbin2(i,:)))/rhoat(i);
   
-              dw(i)=((mwat(i)+sum(mbin2(i,:)))*6._sp/(pi*rhoat(i)))**(1._sp/3._sp)
+              dw(i)=((mwat(i)+sum(mbin2(i,:)))*6._wp/(pi*rhoat(i)))**(1._wp/3._wp)
   
               dd(i)=((sum(mbin2(i,:)/rhobin(i,:)))* &
-                     6._sp/(pi))**(1._sp/3._sp) ! dry diameter
+                     6._wp/(pi))**(1._wp/3._wp) ! dry diameter
                                   ! needed for eqn 6, petters and kreidenweis (2007)
-              kappa(i)=sum((mbin2(i,:)+1.e-60_sp)/rhobin(i,:)*kappabin(i,:)) &
-                     / sum((mbin2(i,:)+1.e-60_sp)/rhobin(i,:))
+              kappa(i)=sum((mbin2(i,:)+1.e-60_wp)/rhobin(i,:)*kappabin(i,:)) &
+                     / sum((mbin2(i,:)+1.e-60_wp)/rhobin(i,:))
                      ! equation 7, petters and kreidenweis (2007)
-              aw(i)=(dw(i)**3-dd(i)**3)/(dw(i)**3-dd(i)**3*(1._sp-kappa(i))) ! from eq 6,p+k(acp,2007)
+              aw(i)=(dw(i)**3-dd(i)**3)/(dw(i)**3-dd(i)**3*(1._wp-kappa(i))) ! from eq 6,p+k(acp,2007)
             case default
               print *,'error kappa_flag'
               stop
@@ -753,8 +753,8 @@
       
           ! the number of ice crystals nucleated:
           dn01(i)=max( npart(i)* &
-                (1._sp-exp(-sum(jw(1:grida(i)%kp_cur)* &
-                nw(1:grida(i)%kp_cur))*molw_water/rhow*dt)) ,0._sp)
+                (1._wp-exp(-sum(jw(1:grida(i)%kp_cur)* &
+                nw(1:grida(i)%kp_cur))*molw_water/rhow*dt)) ,0._wp)
       enddo
       
       
@@ -762,11 +762,11 @@
 
 
       if(t.gt.ttr) then
-          dn01=0._sp
+          dn01=0._wp
       endif
       !!!!
       ! total aerosol mass in each bin added together:
-      dmaer01(:,:)=(mbin2_ice(:,:)*(spread(npartice(:),2,sz)+1.e-50_sp)+ &
+      dmaer01(:,:)=(mbin2_ice(:,:)*(spread(npartice(:),2,sz)+1.e-50_wp)+ &
                       mbin2(:,:)*spread(dn01(:),2,sz) ) 
       ! total water mass that will be in the ice bins:
       m01=(yice*npartice+mwat(:)*dn01(:)) 
@@ -779,14 +779,14 @@
       m01=m01/(npartice) 
       
       
-      where(m01.gt.0._sp.and.npartice.gt.0._sp)
+      where(m01.gt.0._wp.and.npartice.gt.0._wp)
         yice=m01
       elsewhere
         yice=yice
       end where
       
       ! aerosol mass in ice bins
-      mbin2_ice(:,:)=dmaer01(:,:)/(1.e-50_sp+spread(npartice,2,sz))
+      mbin2_ice(:,:)=dmaer01(:,:)/(1.e-50_wp+spread(npartice,2,sz))
 
       ! latent heat of fusion:
       t=t+lf/cp*sum(mwat(:)*dn01(:))
@@ -806,7 +806,7 @@
 	!>@param[inout] new_file
     subroutine outputdiff(new_file,outputfile)
 
-    use nrtype
+    use numerics_type
     use netcdf
 
     implicit none
