@@ -3,5 +3,6 @@
 *.a
 *.so
 *.exe
+*~
 doxygen
 *.dSYM
