@@ -1,3 +1,10 @@
+      !>@author
+      !>Netlib 2019
+      !>@copyright Public Domain
+      !>@brief
+      !> Collection of routines for 
+      !> instrumented linpack routines used in timing comparisons (double precision)
+      !>Downloaded from Netlib, 2019 
       subroutine dgefa(a,lda,n,ipvt,info)
       integer lda,n,ipvt(*),info ! pc - change from 1 to *
       double precision a(lda,*)  ! pc - change from 1 to *

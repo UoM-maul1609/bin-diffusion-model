@@ -1,4 +1,15 @@
-      DOUBLE PRECISION FUNCTION D1MACH(I)
+      !>@author
+      !>The Netlib 
+      !>@copyright Public Domain
+      !>@brief
+      !> Calculate machine dependent constants
+      !>Downloaded from Netlib, 2019
+      !> with additions by Paul Connolly, University of Manchester
+      !>@param[in] I: input integer flag -see below
+      !>@return d1mach: magnitudes as below
+      FUNCTION D1MACH(I)
+      use numerics_type
+      real(wp) :: d1mach
       INTEGER I
 C
 C  DOUBLE-PRECISION MACHINE CONSTANTS
@@ -16,7 +27,7 @@ C
       INTEGER SC, CRAY1(38), J
       COMMON /D9MACH/ CRAY1
       SAVE SMALL, LARGE, RIGHT, DIVER, LOG10, SC
-      DOUBLE PRECISION DMACH(5)
+      real(wp) :: DMACH(5)
       EQUIVALENCE (DMACH(1),SMALL(1))
       EQUIVALENCE (DMACH(2),LARGE(1))
       EQUIVALENCE (DMACH(3),RIGHT(1))
@@ -59,7 +70,7 @@ C      DATA LOG10(1),LOG10(2) / O177746420232, O411757177572 /, SC/987/
 C
 C     ON FIRST CALL, IF NO DATA UNCOMMENTED, TEST MACHINE TYPES.
       IF (SC .NE. 987) THEN
-         DMACH(1) = 1.D13
+         DMACH(1) = 1.e13_wp
          IF (      SMALL(1) .EQ. 1117925532
      *       .AND. SMALL(2) .EQ. -448790528) THEN
 *           *** IEEE BIG ENDIAN ***
@@ -139,8 +150,8 @@ C     ON FIRST CALL, IF NO DATA UNCOMMENTED, TEST MACHINE TYPES.
             LOG10(1) = 1142112243
             LOG10(2) = 2046775455
          ELSE
-            DMACH(2) = 1.D27 + 1
-            DMACH(3) = 1.D27
+            DMACH(2) = 1.e27_wp + 1
+            DMACH(3) = 1.e27_wp
             LARGE(2) = LARGE(2) - RIGHT(2)
             IF (LARGE(2) .EQ. 64 .AND. SMALL(2) .EQ. 0) THEN
                CRAY1(1) = 67291416
@@ -175,7 +186,7 @@ C     ON FIRST CALL, IF NO DATA UNCOMMENTED, TEST MACHINE TYPES.
          SC = 987
          END IF
 *    SANITY CHECK
-      IF (DMACH(4) .GE. 1.0D0) STOP 778
+      IF (DMACH(4) .GE. 1.0e0_wp) STOP 778
       IF (I .LT. 1 .OR. I .GT. 5) THEN
          WRITE(*,*) 'D1MACH(I): I =',I,' is out of bounds.'
          STOP
