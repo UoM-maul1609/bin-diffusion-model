@@ -5,3 +5,5 @@
 *.exe
 *~
 doxygen
+*.dSYM
+
