@@ -15,15 +15,15 @@
     program main
 
         use diffusion_coefficients
-        use nrtype
+        use numerics_type
         
         implicit none
 
         integer(i4b) :: kp, n_comp, i, param, compound
-        real(sp) :: t 
-        real(sp), allocatable, dimension(:) :: molefrac
-        real(sp), allocatable, dimension (:) :: d_self
-        real(sp), allocatable, dimension (:) :: d_coeff
+        real(wp) :: t 
+        real(wp), allocatable, dimension(:) :: molefrac
+        real(wp), allocatable, dimension (:) :: d_self
+        real(wp), allocatable, dimension (:) :: d_coeff
 
 
         ! read in namelists
