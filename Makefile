@@ -16,18 +16,18 @@ FFLAGS2 = $(DEBUG) -O3 -o
 
 # dependancies
 
-main.exe	: main.$(OBJ) diffusion_coefficients.$(OBJ) nrtype.$(OBJ)
+main.exe	: main.$(OBJ) diffusion_coefficients.$(OBJ) numerics_type.$(OBJ)
 	$(FOR2) $(FFLAGS2)main.exe main.$(OBJ) diffusion_coefficients.$(OBJ)
 
-diffusion_coefficients.$(OBJ)	: diffusion_coefficients.f90 nrtype.$(OBJ)
+diffusion_coefficients.$(OBJ)	: diffusion_coefficients.f90 numerics_type.$(OBJ)
 	$(FOR) diffusion_coefficients.f90 \
 		$(FFLAGS)diffusion_coefficients.$(OBJ)
 
-main.$(OBJ)	 : main.f90 diffusion_coefficients.$(OBJ) nrtype.$(OBJ)
+main.$(OBJ)	 : main.f90 diffusion_coefficients.$(OBJ) numerics_type.$(OBJ)
 	$(FOR) main.f90 $(FFLAGS)main.$(OBJ)
 
-nrtype.$(OBJ)	: nrtype.f90
-	$(FOR) nrtype.f90 $(FFLAGS)nrtype.$(OBJ)
+numerics_type.$(OBJ)	: numerics_type.f90
+	$(FOR) numerics_type.f90 $(FFLAGS)numerics_type.$(OBJ)
 
 clean: 
 	rm *.exe *.o *.mod *~ *.a
