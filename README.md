@@ -56,6 +56,43 @@ For `diffusion_type = 0`, the constant coefficient is `nmd%d_coeff` in `mbd/name
 
 For `diffusion_type = 1`, BDM uses `diffusion_coeff_file` (normally `namelist.diff_coeffs`) and the DCC parameterisation selected there.
 
+
+## Example simulations
+
+The examples below show the evolution of the resolved radial **water activity** in selected BMM size bins.  Radius is shown on a logarithmic scale and the colour field gives the water activity within the particle as a function of radius and time.
+
+### 195 K — constant diffusion coefficient
+
+This case uses a constant molecular diffusion coefficient of \(D = 1\times10^{-17}\ \mathrm{m^2\,s^{-1}}\).
+
+![BDM simulation at 195 K using a constant diffusion coefficient of 1e-17 m2 s-1](matlab/images/bdm_simulation_195K_D1e-17.png)
+
+### 195 K — Lienhard2015 alpha-pinene
+
+This case uses the composition-dependent **Lienhard2015** diffusion-coefficient parameterisation for **alpha-pinene**.
+
+![BDM simulation at 195 K using the Lienhard2015 alpha-pinene diffusion parameterisation](matlab/images/bdm_simulation_195Kalpha_pinene.png)
+
+### 243 K — constant diffusion coefficient
+
+This case uses a constant molecular diffusion coefficient of \(D = 1\times10^{-17}\ \mathrm{m^2\,s^{-1}}\) at the warmer initial temperature of 243 K.
+
+![BDM simulation at 243 K using a constant diffusion coefficient of 1e-17 m2 s-1](matlab/images/bdm_simulation_243K_D1e-17.png)
+
+These examples illustrate the sensitivity of the internal water distribution and particle growth to both temperature and the treatment of condensed-phase diffusion.
+
+
+## Scientific background and references
+
+BDM follows the modelling approach developed by **Fowler, Connolly and Topping (2020)**, who coupled size-resolved cloud-parcel microphysics to a condensed-phase diffusion model in order to investigate how restricted water transport within ultra-viscous aerosol particles affects particle growth and homogeneous ice nucleation.  This is the primary scientific reference for the BDM approach described here.
+
+The moving-boundary radial diffusion treatment is also closely related to **Fowler et al. (2018)**, which describes a concentric-shell aerosol model in which the outer particle radius moves as water is taken up or lost and diffusion is solved through the particle interior.
+
+### References
+
+- Fowler, K., Connolly, P., and Topping, D. (2020): *Modelling the effect of condensed-phase diffusion on the homogeneous nucleation of ice in ultra-viscous particles*, **Atmospheric Chemistry and Physics**, 20, 683–698. https://doi.org/10.5194/acp-20-683-2020
+- Fowler, K., Connolly, P. J., Topping, D. O., and O'Meara, S. (2018): *Maxwell–Stefan diffusion: a framework for predicting condensed phase diffusion and phase separation in atmospheric aerosol*, **Atmospheric Chemistry and Physics**, 18, 1629–1642. https://doi.org/10.5194/acp-18-1629-2018
+
 ## Repository layout
 
 - `bin_diffusion_model.f90` — BDM/BMM/MBD coupling, including the BDM-specific warm and ice callbacks.
