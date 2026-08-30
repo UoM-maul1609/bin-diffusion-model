@@ -9,7 +9,7 @@ BMM_OPT_DIR = $(BMM_DIR)/opt
 CLEANDIRS = $(BMM_DIR) $(BMM_DIR)/osnf $(BMM_DIR)/sce $(BMM_DIR)/sce/osnf \
             $(MBD_DIR) $(MBD_DIR)/osnf $(DCC_DIR) $(DCC_DIR)/osnf ./
 
-DEBUG = -fbounds-check -g
+DEBUG = -g
 MPI    =#-DMPI1
 OPT    =-O3
 
