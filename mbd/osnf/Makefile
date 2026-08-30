@@ -1,4 +1,4 @@
-DEBUG = -fbounds-check -g
+DEBUG = -g
 MPI    =#-DMPI1
 OPT    =-O3
 
@@ -20,9 +20,9 @@ FOR2 = gfortran
 AR = ar 
 RANLIB = ranlib 
 OBJ = o
-FFLAGS = $(OPT)  $(DEBUG)  -o 
-FFLAGS2 =  $(DEBUG) -O3 -o 
-
+FFLAGS = $(OPT)  $(DEBUG) -w -o 
+FFLAGS2 =  $(DEBUG) -O3 -w -o 
+VAR_TYPE = 1 # 0 single, 1 double
 
 
 main.exe	:  osnf_lib.a  main.$(OBJ) 
@@ -41,18 +41,18 @@ osnf_lib.a	:  numerics.$(OBJ) zeroin.$(OBJ) sfmin.$(OBJ) \
             svode.$(OBJ) slinpk.$(OBJ) vode.$(OBJ) dlinpk.$(OBJ) vode_integrate.$(OBJ) \
             erfinv.$(OBJ) tridiagonal.$(OBJ) hygfx.$(OBJ) random.$(OBJ)
 numerics_type.$(OBJ)	: numerics_type.f90 
-	$(FOR) numerics_type.f90 $(FFLAGS)numerics_type.$(OBJ)
+	$(FOR) numerics_type.f90 -cpp -DVAR_TYPE=$(VAR_TYPE) $(FFLAGS)numerics_type.$(OBJ)
 numerics.$(OBJ)	: numerics.f90 numerics_type.$(OBJ)
 	$(FOR) numerics.f90 $(FFLAGS)numerics.$(OBJ)
-zeroin.$(OBJ)	: zeroin.f
+zeroin.$(OBJ)	: zeroin.f numerics_type.$(OBJ)
 	$(FOR) zeroin.f $(FFLAGS)zeroin.$(OBJ)
 sfmin.$(OBJ)	: sfmin.f
 	$(FOR) sfmin.f $(FFLAGS)sfmin.$(OBJ)
 fmin.$(OBJ)	: fmin.f
 	$(FOR) fmin.f $(FFLAGS)fmin.$(OBJ)
-r1mach.$(OBJ) 	: r1mach.f 
+r1mach.$(OBJ) 	: r1mach.f numerics_type.$(OBJ)
 	$(FOR) r1mach.f $(FFLAGS)r1mach.$(OBJ)  
-d1mach.$(OBJ) 	: d1mach.f 
+d1mach.$(OBJ) 	: d1mach.f numerics_type.$(OBJ)
 	$(FOR) d1mach.f $(FFLAGS)d1mach.$(OBJ)  
 svode.$(OBJ) 	: svode.f
 	$(FOR) svode.f -cpp -DDUAL $(FFLAGS)svode.$(OBJ)  
@@ -62,26 +62,26 @@ vode.$(OBJ) 	: vode.f
 	$(FOR) vode.f $(FFLAGS)vode.$(OBJ)  
 dlinpk.$(OBJ) 	: dlinpk.f 
 	$(FOR) dlinpk.f -w $(FFLAGS)dlinpk.$(OBJ)  
-vode_integrate.$(OBJ) 	: vode_integrate.f90
+vode_integrate.$(OBJ) 	: vode_integrate.f90 numerics.$(OBJ)
 	$(FOR) vode_integrate.f90 $(FFLAGS)vode_integrate.$(OBJ)  
-dfsid1.$(OBJ) 	: dfsid1.f 
+dfsid1.$(OBJ) 	: dfsid1.f numerics_type.$(OBJ)
 	$(FOR) dfsid1.f $(FFLAGS)dfsid1.$(OBJ)  
 find_pos.$(OBJ)	: find_pos.f90 numerics_type.$(OBJ)
 	$(FOR) find_pos.f90 $(FFLAGS)find_pos.$(OBJ)
-poly_int.$(OBJ)	: poly_int.f90 numerics_type.$(OBJ)
+poly_int.$(OBJ)	: poly_int.f90 numerics.$(OBJ)
 	$(FOR) poly_int.f90 $(FFLAGS)poly_int.$(OBJ)
-tridiagonal.$(OBJ)	: tridiagonal.f90 numerics_type.$(OBJ)
+tridiagonal.$(OBJ)	: tridiagonal.f90 numerics.$(OBJ)
 	$(FOR) tridiagonal.f90 $(FFLAGS)tridiagonal.$(OBJ)
-erfinv.$(OBJ)	: erfinv.f90 numerics_type.$(OBJ)
+erfinv.$(OBJ)	: erfinv.f90 numerics.$(OBJ)
 	$(FOR) erfinv.f90 $(FFLAGS)erfinv.$(OBJ)
 random.$(OBJ)	: random.f90 numerics_type.$(OBJ)
 	$(FOR) random.f90 $(FFLAGS)random.$(OBJ)
-hygfx.$(OBJ) : hygfx.for 
+hygfx.$(OBJ) : hygfx.for numerics_type.$(OBJ)
 	$(FOR) hygfx.for $(FFLAGS)hygfx.$(OBJ) 
 main.$(OBJ)   : main.f90 
 	$(FOR)  main.f90 -I ${NETCDFMOD} $(FFLAGS)main.$(OBJ) 
 	
 clean :
-	rm *.exe *.o *.mod *~ \
-	osnf_lib.a;rm -R *.dSYM
+	rm -f *.exe *.o *.mod *~ osnf_lib.a
+	rm -rf *.dSYM
 
