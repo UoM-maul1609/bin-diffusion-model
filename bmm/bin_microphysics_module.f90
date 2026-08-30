@@ -2770,7 +2770,8 @@
                 parcel1%nubin(:,1:n_comps), &
                 parcel1%kappabin(:,1:n_comps), &
                 parcel1%molwbin(:,1:n_comps), &
-                parcel1%moments(1:2*parcel1%n_bin_modew,1:parcel1%imoms), &
+                parcel1%moments(1:2*parcel1%n_bin_modew, &
+                                1:parcel1%n_comps+parcel1%imoms), &
                 parcel1%y(parcel1%ite), &
                 parcel1%y(parcel1%ipr),&
                 n_comps,parcel1%n_bin_modew,parcel1%imoms+n_comps, &

@@ -162,7 +162,7 @@
         ! work out the diameter, including the water...                        !
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         call wetdiam(parcel1%mbin(:,n_comps+1),parcel1%mbin,parcel1%rhobin, &
-                    parcel1%n_bin_mode,parcel1%dw) 
+                    parcel1%n_bin_modew,parcel1%dw) 
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                     
 
@@ -171,11 +171,11 @@
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         ! Allocate and initialise arrays for diffusion model         		   !
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-		allocate( grida(1:n_bins), STAT = AllocateStatus)
+		allocate( grida(1:parcel1%n_bin_modew), STAT = AllocateStatus)
 		if (AllocateStatus /= 0) STOP "*** Not enough memory ***"	
-		allocate( nwo(1:n_bins), STAT = AllocateStatus)
+		allocate( nwo(1:parcel1%n_bin_modew), STAT = AllocateStatus)
 		if (AllocateStatus /= 0) STOP "*** Not enough memory ***"	
-		allocate( nso(1:n_bins,1:n_comps), STAT = AllocateStatus)
+		allocate( nso(1:parcel1%n_bin_modew,1:n_comps), STAT = AllocateStatus)
 		if (AllocateStatus /= 0) STOP "*** Not enough memory ***"	
 
 		allocate( jw(1:nmd%kp), STAT = AllocateStatus)
@@ -188,7 +188,7 @@
 		if (AllocateStatus /= 0) STOP "*** Not enough memory ***"	
 
         
-        do i=1,n_bins
+        do i=1,parcel1%n_bin_modew
             call allocate_and_set_diff(nmd%kp,nmd%dt,nmd%runtime, &
 !                parcel1%dw(i)/2._wp, nmd%rad_min, nmd%rad_max, nmd%t,nmd%p, parcel1%rh, &
                 parcel1%dw(i)/2._wp, nmd%rad_min, nmd%rad_max, nmd%t,nmd%p, &
@@ -235,7 +235,7 @@
     
     ! reduce tolerances for this model:
     parcel1%rtol=1.e-6_wp
-    parcel1%atol(1:parcel1%n_bin_mode)=1.e-30_wp
+    parcel1%atol(1:parcel1%n_bin_modew)=1.e-30_wp
     
     
     
@@ -251,7 +251,7 @@
         
         
         ! store old aerosol state
-        do j=1,n_bins
+        do j=1,parcel1%n_bin_modew
             grida(j)%cold=grida(j)%c
             grida(j)%kp_cur_old=grida(j)%kp_cur
             grida(j)%rad_old=grida(j)%rad
@@ -335,11 +335,11 @@
 !         enddo
         
         ! check there are no negative values
-!         where(parcel1%y(1:parcel1%n_bin_mode).le.0.e1_wp)
-!             parcel1%y(1:parcel1%n_bin_mode)=1.e-22_wp
+!         where(parcel1%y(1:parcel1%n_bin_modew).le.0.e1_wp)
+!             parcel1%y(1:parcel1%n_bin_modew)=1.e-22_wp
 !         end where
 
-        do j=1,parcel1%n_bin_mode
+        do j=1,parcel1%n_bin_modew
             if(parcel1%y(j).le.0.e1_wp) then
                 parcel1%y(j)=sum(grida(j)%c(1:grida(j)%kp_cur,1)* &
                                             grida(j)%vol(1:grida(j)%kp_cur))*molw_water
@@ -448,7 +448,7 @@
 
         integer(i4b) :: i, j,iloc, ipart, ipr, ite, irh, iz,iw
 
-        ipart=parcel1%n_bin_mode
+        ipart=parcel1%n_bin_modew
         ipr=parcel1%ipr
         ite=parcel1%ite
         irh=parcel1%irh
@@ -486,7 +486,7 @@
 
 
         ! diffusion stuff - part 1
-        do i=1,n_bins
+        do i=1,ipart
             
             grida(i)%c=grida(i)%cold
             grida(i)%kp_cur=grida(i)%kp_cur_old
@@ -692,22 +692,25 @@
     ! ice nucleation                                                               !
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     subroutine icenucleation_diff(npart, npartice, mwat,mbin2,mbin2_ice, &
-                         rhobin,nubin,kappabin,molwbin,t,p,sz,sz2,yice,rh,dt) 
+                         rhobin,nubin,kappabin,molwbin,moments, &
+                         t,p,sz,sz2,sz3,yice,rh,dt) 
       use numerics_type
       implicit none
       real(wp), intent(inout) :: t
       real(wp), intent(in) :: p,rh,dt
       real(wp), dimension(sz2), intent(inout) :: npart,npartice
-      real(wp), dimension(:), intent(in) :: mwat
-      real(wp), dimension(:,:), intent(in) :: mbin2, &
+      real(wp), dimension(sz2), intent(in) :: mwat
+      real(wp), dimension(sz2,sz), intent(in) :: mbin2, &
                                               rhobin,nubin,kappabin,molwbin
-      integer(i4b), intent(in) :: sz,sz2
+      real(wp), dimension(2*sz2,sz3), intent(inout) :: moments
+      integer(i4b), intent(in) :: sz,sz2,sz3
       real(wp), dimension(sz2) :: dn01,m01,dw,dd,kappa,rhoat
       real(wp), dimension(sz2,sz) :: dmaer01
       real(wp), dimension(sz2,sz), intent(inout) :: mbin2_ice
       
       real(wp), intent(inout), dimension(sz2) :: yice
       integer(i4b) :: i
+      real(wp) :: fracinliq, fracinice
       
       
       ! loop over each particle:
@@ -776,8 +779,33 @@
       ! number conc. of ice bins:
       npartice(:)=npartice(:)+dn01(:)
       ! new ice mass in bin:
-      m01=m01/(npartice) 
-      
+      where (npartice > 0._wp)
+          m01=m01/npartice
+      elsewhere
+          m01=0._wp
+      end where
+
+      ! Keep the conserved aerosol/ice moments consistent with the transfer
+      ! from the liquid population to the ice population.  bin_microphysics
+      ! uses these moments immediately after this callback.
+      do i=1,sz2
+          fracinliq=npart(i)/max(npart(i)+dn01(i),1.e-30_wp)
+          fracinice=npartice(i)/max(npartice(i)-dn01(i),1.e-30_wp)
+
+          moments(i,1:sz)=moments(i,1:sz)*fracinliq
+          moments(i+sz2,1:sz)=moments(i+sz2,1:sz)*fracinice
+
+          ! phi and monomer-number moments receive the newly nucleated crystals.
+          moments(i+sz2,sz+1)=moments(i+sz2,sz+1)+dn01(i)
+          moments(i+sz2,sz+2)=moments(i+sz2,sz+2)+dn01(i)
+
+          ! Ice-volume moment.
+          if (m01(i) > 0._wp) then
+              moments(i+sz2,sz+3)=moments(i+sz2,sz+3)+dn01(i)*m01(i)/rhoice
+          else
+              moments(i+sz2,sz+3)=0._wp
+          endif
+      enddo
       
       where(m01.gt.0._wp.and.npartice.gt.0._wp)
         yice=m01
