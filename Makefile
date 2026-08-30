@@ -3,7 +3,7 @@
 
 # variables
 
-DEBUG = -fbounds-check -g
+DEBUG = -g
 OPT = -O3
 
 FOR = gfortran -c
