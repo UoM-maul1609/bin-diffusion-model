@@ -79,7 +79,8 @@
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         ! bin-microphysics namelist                                            !
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        call read_in_bmm_namelist(bin_model_file)    
+        call read_in_bmm_namelist(bin_model_file)
+        call validate_bdm_bmm_configuration()
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -99,6 +100,48 @@
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 	end subroutine read_in_bdm_namelist
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! validate the deliberately restricted BDM/BMM coupling                    !
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    subroutine validate_bdm_bmm_configuration()
+        use bmm
+        implicit none
+
+        if (bin_scheme_flag /= BIN_FULL_MOVING) &
+            error stop 'BDM requires BMM bin_scheme_flag=0 (full_moving)'
+        if (sce_flag /= 0_i4b) &
+            error stop 'BDM requires sce_flag=0 (no aggregation/collisions)'
+        if (.not.adiabatic_prof) &
+            error stop 'BDM does not support BMM entrainment; set adiabatic_prof=.true.'
+        if (n_comps /= 1_i4b) &
+            error stop 'BDM currently supports exactly one soluble aerosol component'
+        if (any(nu_core1(1:n_comps) <= 0._wp)) &
+            error stop 'BDM requires a soluble aerosol component with nu_core1 > 0'
+        if (sv_flag /= 0_i4b) &
+            error stop 'BDM does not support semivolatile aerosol; set sv_flag=0'
+        if (kappa_flag /= 0_i4b) &
+            error stop 'BDM radial activity requires molecular Koehler; set kappa_flag=0'
+        if (n_inp_classes /= 0_i4b) &
+            error stop 'BDM supports homogeneous nucleation only; set n_inp_classes=0'
+
+        if (ice_flag == 1_i4b) then
+            if (.not.ice_nucleation_mech(INUC_KOOP) .or. &
+                any(ice_nucleation_mech(2:N_INUC_MECH))) &
+                error stop 'BDM requires Koop-only homogeneous nucleation'
+            if (mode1_flag .or. mode2_flag .or. hm_flag .or. break_flag /= 0_i4b) &
+                error stop 'BDM does not support secondary-ice/breakup mechanisms'
+        endif
+
+        if (entrain_period /= 0_i4b .or. entrain_aerosol .or. release_aerosol) &
+            error stop 'BDM does not support entrainment/aerosol exchange'
+        if (abs(ent_rate) > tiny(1._wp)) &
+            error stop 'BDM does not support entrainment; set ent_rate=0'
+        if (chamber_forcing_active .or. chamber_bl_mix /= 0_i4b .or. &
+            chamber_fan_loss /= 0_i4b .or. chamber_wall_loss /= 0_i4b) &
+            error stop 'BDM does not support BMM chamber forcing/loss options'
+
+    end subroutine validate_bdm_bmm_configuration
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! read in dcc namelist							                           !
@@ -144,7 +187,7 @@
     subroutine initialise_bdm_arrays()
         use numerics_type
         use numerics, only : find_pos, poly_int, vode_integrate, zeroin, fmin
-        use bmm, only : initialise_bmm_arrays, nu_core1
+        use bmm
         use diffusion, only : allocate_and_set_diff, nmd, gridd
 
         implicit none
@@ -152,7 +195,19 @@
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         ! bin-microphysics arrays                                              !
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        call initialise_bmm_arrays()
+        call initialise_bmm_arrays(psurf, tsurf, q_read, theta_read, rh_read, z_read, &
+                    time_chamber, press_chamber, temp_chamber, qtot_chamber, &
+                    runtime, dt, zinit, tpert, use_prof_for_tprh, &
+                    winit, tinit, pinit, &
+                    rhinit, radinit, bubble_flag, &
+                    microphysics_flag, ice_flag, bin_scheme_flag, vent_flag, &
+                    kappa_flag, updraft_type, adiabatic_prof, vert_ent, z_ctop, &
+                    ent_rate, n_levels_s, n_levels_c, &
+                    alpha_therm, alpha_cond, alpha_therm_ice, &
+                    alpha_dep, n_intern, n_mode, n_sv, sv_flag, n_bins, n_comps, &
+                    n_aer1,d_aer1,sig_aer1,dmina,dmaxa,mass_frac_aer1,molw_core1, &
+                    density_core1, nu_core1, kappa_core1, org_content1, molw_org1, &
+                    kappa_org1, density_org1, delta_h_vap1,nu_org1, log_c_star1,sce_flag)
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 
@@ -265,7 +320,8 @@
         enddo
         
         ! one time-step of model
-        call bin_microphysics(fparcelwarmdiff,fparcelcold,icenucleation_diff)
+        call bin_microphysics(fparcelwarmdiff,fparcelcold,icenucleation, &
+                              noncollisional_iceformation_diff)
         
         
         ! diffusion out-side of solver
@@ -691,134 +747,143 @@
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! ice nucleation                                                               !
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    subroutine icenucleation_diff(npart, npartice, mwat,mbin2,mbin2_ice, &
-                         rhobin,nubin,kappabin,molwbin,moments, &
-                         t,p,sz,sz2,sz3,yice,rh,dt) 
+    subroutine noncollisional_iceformation_diff(npart, npartice, mwat,mbin2,mbin2_ice, &
+                         rhobin,nubin,kappabin,molwbin,moments,medges, &
+                         t,p,nbins1,ncomps,nbinw,nmoms,nmodes,yice,rh,dt,sce_flag_in, &
+                         mode1_flag_in, ice_nucleation_mech_in)
+      ! BDM version of the current BMM func4 callback.  BDM deliberately supports
+      ! only full-moving, non-collisional, soluble-aerosol homogeneous freezing.
+      ! The freezing probability is evaluated from the radially resolved water
+      ! activity in grida; the transfer to the BMM ice population follows the
+      ! current full-moving noncollisional_iceformation bookkeeping.
       use numerics_type
+      use sce, only : sce_receiving_bin
       implicit none
+
       real(wp), intent(inout) :: t
-      real(wp), intent(in) :: p,rh,dt
-      real(wp), dimension(sz2), intent(inout) :: npart,npartice
-      real(wp), dimension(sz2), intent(in) :: mwat
-      real(wp), dimension(sz2,sz), intent(in) :: mbin2, &
+      real(wp), intent(in) :: p,dt
+      integer(i4b), intent(in) :: nbins1,ncomps,nbinw,nmoms,nmodes,sce_flag_in
+      logical, intent(in) :: mode1_flag_in
+      logical, dimension(N_INUC_MECH), intent(in) :: ice_nucleation_mech_in
+
+      real(wp), dimension(nbinw), intent(inout) :: npart,npartice
+      real(wp), dimension(nbinw), intent(in) :: mwat
+      real(wp), dimension(nbinw,ncomps), intent(in) :: mbin2, &
                                               rhobin,nubin,kappabin,molwbin
-      real(wp), dimension(2*sz2,sz3), intent(inout) :: moments
-      integer(i4b), intent(in) :: sz,sz2,sz3
-      real(wp), dimension(sz2) :: dn01,m01,dw,dd,kappa,rhoat
-      real(wp), dimension(sz2,sz) :: dmaer01
-      real(wp), dimension(sz2,sz), intent(inout) :: mbin2_ice
-      
-      real(wp), intent(inout), dimension(sz2) :: yice
-      integer(i4b) :: i
-      real(wp) :: fracinliq, fracinice
-      
-      
-      ! loop over each particle:
-      do i=1,sz2
-          !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-          ! first calculate the ice formation over dt using koop et al. 2000       !
-          !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-          ! number of moles of water
-          nw(1:grida(i)%kp_cur)=grida(i)%c(1:grida(i)%kp_cur,1)* &
-                                grida(i)%vol(1:grida(i)%kp_cur)
-          ! number of moles of solute
-          ns(1:grida(i)%kp_cur)=grida(i)%c(1:grida(i)%kp_cur,2)* &
-                                grida(i)%vol(1:grida(i)%kp_cur)
-          ! activity of water
-          select case(kappa_flag)
-            case(0)
-              ! beware of underflow here:
-              aw(1:grida(i)%kp_cur)=(grida(i)%c(1:grida(i)%kp_cur,1))/ &
-                (grida(i)%c(1:grida(i)%kp_cur,1)+ &
-                (grida(i)%c(1:grida(i)%kp_cur,2))*nubin(i,1) )
-              !aw(:)=(nw(:))/(nw(:)+(ns(:))*nubin(i,1) )
-              !aw(:)=(mwat(i)/molw_water)/(mwat(i)/molw_water+mbin2(i,1)/molwbin(i,1)*nubin(i,1) )
-            case(1)
-              rhoat(i)=mwat(i)/rhow+sum(mbin2(i,:)/rhobin(i,:))
-              rhoat(i)=(mwat(i)+sum(mbin2(i,:)))/rhoat(i);
-  
-              dw(i)=((mwat(i)+sum(mbin2(i,:)))*6._wp/(pi*rhoat(i)))**(1._wp/3._wp)
-  
-              dd(i)=((sum(mbin2(i,:)/rhobin(i,:)))* &
-                     6._wp/(pi))**(1._wp/3._wp) ! dry diameter
-                                  ! needed for eqn 6, petters and kreidenweis (2007)
-              kappa(i)=sum((mbin2(i,:)+1.e-60_wp)/rhobin(i,:)*kappabin(i,:)) &
-                     / sum((mbin2(i,:)+1.e-60_wp)/rhobin(i,:))
-                     ! equation 7, petters and kreidenweis (2007)
-              aw(i)=(dw(i)**3-dd(i)**3)/(dw(i)**3-dd(i)**3*(1._wp-kappa(i))) ! from eq 6,p+k(acp,2007)
-            case default
-              print *,'error kappa_flag'
-              stop
-          end select
-          ! koop et al. (2000) nucleation rate - due to homogeneous nucleation.
-          jw(1:grida(i)%kp_cur)=koopnucrate(aw(1:grida(i)%kp_cur),t,p,grida(i)%kp_cur)
-          !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-      
-          ! the number of ice crystals nucleated:
-          dn01(i)=max( npart(i)* &
-                (1._wp-exp(-sum(jw(1:grida(i)%kp_cur)* &
-                nw(1:grida(i)%kp_cur))*molw_water/rhow*dt)) ,0._wp)
-      enddo
-      
-      
+      real(wp), dimension(2*nbinw,nmoms), intent(inout) :: moments
+      real(wp), dimension(nbins1+1,nmodes), intent(in) :: medges
+      real(wp), dimension(nbinw,ncomps+1), intent(inout) :: mbin2_ice
+      real(wp), dimension(nbinw), intent(inout) :: yice
+      real(wp), intent(inout) :: rh
 
+      real(wp), dimension(nbinw) :: dn01,m01
+      real(wp), dimension(nmoms) :: momtemp
+      real(wp) :: fracinliq, exponent_arg, mleft
+      integer(i4b) :: i,j,k,jl,jh,inew
 
+      ! These checks duplicate the startup validation intentionally: they protect
+      ! the callback contract if BMM controls are ever changed during a run.
+      if (sce_flag_in /= 0_i4b) &
+          error stop 'BDM: SCE/aggregation is not supported'
+      if (mode1_flag_in) &
+          error stop 'BDM: mode-1 secondary ice is not supported'
+      if (parcel1%bin_scheme_flag /= BIN_FULL_MOVING) &
+          error stop 'BDM: bin_scheme_flag must be full_moving (0)'
+      if (ncomps /= 1_i4b) &
+          error stop 'BDM: radial diffusion currently supports one soluble aerosol component'
+      if (n_inp_classes /= 0_i4b) &
+          error stop 'BDM: heterogeneous/INP classes are not supported'
+      if (.not.ice_nucleation_mech_in(INUC_KOOP) .or. &
+          any(ice_nucleation_mech_in(2:N_INUC_MECH))) &
+          error stop 'BDM: only Koop homogeneous ice nucleation is supported'
+      if (nbinw /= size(grida)) &
+          error stop 'BDM: BMM warm-bin count does not match radial-grid count'
 
-      if(t.gt.ttr) then
-          dn01=0._wp
+      dn01=0._wp
+      if (t <= ttr) then
+          do k=1,nbinw
+              if (npart(k) <= qsmall2 .or. mwat(k) <= tiny(1._wp)) cycle
+              if (grida(k)%kp_cur < 1) cycle
+
+              ! Radially resolved water activity.  BDM has one soluble material
+              ! component in addition to water, hence c(:,1)=water and c(:,2)=solute.
+              aw(1:grida(k)%kp_cur)=grida(k)%c(1:grida(k)%kp_cur,1) / &
+                  max(grida(k)%c(1:grida(k)%kp_cur,1) + &
+                      grida(k)%c(1:grida(k)%kp_cur,2)*nubin(k,1), tiny(1._wp))
+
+              ! Water moles in each radial shell and Koop nucleation rate.
+              nw(1:grida(k)%kp_cur)=grida(k)%c(1:grida(k)%kp_cur,1) * &
+                                     grida(k)%vol(1:grida(k)%kp_cur)
+              jw(1:grida(k)%kp_cur)=koopnucrate(aw(1:grida(k)%kp_cur), &
+                                                 t,p,grida(k)%kp_cur)
+
+              ! Integral J dV dt, using water volume to retain the original BDM
+              ! interpretation of Koop's volumetric nucleation rate.
+              exponent_arg=sum(jw(1:grida(k)%kp_cur)*nw(1:grida(k)%kp_cur)) * &
+                           molw_water/rhow*dt
+              dn01(k)=npart(k)*(1._wp-exp(-max(exponent_arg,0._wp)))
+              dn01(k)=min(max(dn01(k),0._wp),npart(k))
+          enddo
       endif
-      !!!!
-      ! total aerosol mass in each bin added together:
-      dmaer01(:,:)=(mbin2_ice(:,:)*(spread(npartice(:),2,sz)+1.e-50_wp)+ &
-                      mbin2(:,:)*spread(dn01(:),2,sz) ) 
-      ! total water mass that will be in the ice bins:
-      m01=(yice*npartice+mwat(:)*dn01(:)) 
 
-      ! number conc. of liquid bins:
-      npart(:)=npart(:)-dn01(:)
-      ! number conc. of ice bins:
-      npartice(:)=npartice(:)+dn01(:)
-      ! new ice mass in bin:
-      where (npartice > 0._wp)
-          m01=m01/npartice
-      elsewhere
-          m01=0._wp
-      end where
+      if (maxval(dn01) <= qsmall2) return
 
-      ! Keep the conserved aerosol/ice moments consistent with the transfer
-      ! from the liquid population to the ice population.  bin_microphysics
-      ! uses these moments immediately after this callback.
-      do i=1,sz2
-          fracinliq=npart(i)/max(npart(i)+dn01(i),1.e-30_wp)
-          fracinice=npartice(i)/max(npartice(i)-dn01(i),1.e-30_wp)
+      ! Existing extensive ice water in each moving ice category.
+      m01=yice*npartice
 
-          moments(i,1:sz)=moments(i,1:sz)*fracinliq
-          moments(i+sz2,1:sz)=moments(i+sz2,1:sz)*fracinice
+      ! Same primary-freezing transfer used by the current BMM full-moving
+      ! noncollisional_iceformation routine, with fragmentation disabled.
+      do i=1,nmodes
+          jl=(i-1)*nbins1+1
+          jh=i*nbins1
+          do j=1,nbins1
+              k=j+(i-1)*nbins1
+              if (dn01(k) <= qsmall2) cycle
 
-          ! phi and monomer-number moments receive the newly nucleated crystals.
-          moments(i+sz2,sz+1)=moments(i+sz2,sz+1)+dn01(i)
-          moments(i+sz2,sz+2)=moments(i+sz2,sz+2)+dn01(i)
+              npart(k)=max(npart(k)-dn01(k),0._wp)
+              fracinliq=npart(k)/max(npart(k)+dn01(k),1.e-30_wp)
 
-          ! Ice-volume moment.
-          if (m01(i) > 0._wp) then
-              moments(i+sz2,sz+3)=moments(i+sz2,sz+3)+dn01(i)*m01(i)/rhoice
-          else
-              moments(i+sz2,sz+3)=0._wp
-          endif
+              momtemp=0._wp
+              momtemp(1:ncomps)=(1._wp-fracinliq)*moments(k,1:ncomps)
+              moments(k,1:ncomps)=moments(k,1:ncomps)*fracinliq
+              moments(k,ncomps+1)=moments(k,ncomps+1)*fracinliq
+              moments(k,ncomps+2)=moments(k,ncomps+2)*fracinliq
+              moments(k,ncomps+4)=npart(k)*mwat(k)
+              moments(k,ncomps+5)=npart(k)*mwat(k)
+
+              inew=sce_receiving_bin(mwat(k),jl,jh,yice,.true.)
+
+              moments(inew+nbinw,1:ncomps)= &
+                  moments(inew+nbinw,1:ncomps)+momtemp(1:ncomps)
+
+              mleft=mwat(k)*dn01(k)
+              m01(inew)=m01(inew)+mleft
+              npartice(inew)=npartice(inew)+dn01(k)
+              if (npartice(inew) > qsmall2) yice(inew)=m01(inew)/npartice(inew)
+
+              ! Ice phi, monomer-number and volume moments.
+              moments(inew+nbinw,ncomps+1)= &
+                  moments(inew+nbinw,ncomps+1)+dn01(k)
+              moments(inew+nbinw,ncomps+2)= &
+                  moments(inew+nbinw,ncomps+2)+dn01(k)
+              moments(inew+nbinw,ncomps+3)= &
+                  moments(inew+nbinw,ncomps+3)+mleft/rhoice
+          enddo
       enddo
-      
-      where(m01.gt.0._wp.and.npartice.gt.0._wp)
-        yice=m01
-      elsewhere
-        yice=yice
-      end where
-      
-      ! aerosol mass in ice bins
-      mbin2_ice(:,:)=dmaer01(:,:)/(1.e-50_wp+spread(npartice,2,sz))
 
-      ! latent heat of fusion:
-      t=t+lf/cp*sum(mwat(:)*dn01(:))
-    end subroutine icenucleation_diff
+      where ((m01 > 0._wp) .and. (npartice > 0._wp))
+          yice=m01/npartice
+      end where
+
+      mbin2_ice(:,1:ncomps)=moments(nbinw+1:2*nbinw,1:ncomps) / &
+          (1.e-50_wp+spread(npartice,2,ncomps))
+      mbin2_ice(:,ncomps+1)=yice
+
+      ! Match the current BMM thermodynamic bookkeeping: freezing changes T,
+      ! then RH is recomputed from unchanged vapour mass at the updated T.
+      call adjust_t_rh(sum(mwat*dn01),t,rh,p)
+
+    end subroutine noncollisional_iceformation_diff
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     
 
