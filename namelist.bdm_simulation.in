@@ -2,7 +2,7 @@
     ! Dedicated configuration for matlab/plot_bdm_simulation.m.
     ! Keep the ordinary namelist.in unchanged.
     outputfile = '/tmp/output3.nc',
-    bin_model_file = 'bmm/namelist.diffusion',
+    bin_model_file = 'namelist.diffusion',
     diffusion_model_file = 'mbd/namelist.in',
     diffusion_coeff_file = 'namelist.diff_coeffs',
 
