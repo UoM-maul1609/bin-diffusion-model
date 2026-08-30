@@ -6,4 +6,5 @@
 *~
 doxygen
 *.dSYM
+.DS_Store
 
