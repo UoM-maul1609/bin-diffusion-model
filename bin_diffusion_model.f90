@@ -395,12 +395,27 @@
 !             parcel1%y(1:parcel1%n_bin_modew)=1.e-22_wp
 !         end where
 
-        do j=1,parcel1%n_bin_modew
-            if(parcel1%y(j).le.0.e1_wp) then
-                parcel1%y(j)=sum(grida(j)%c(1:grida(j)%kp_cur,1)* &
-                                            grida(j)%vol(1:grida(j)%kp_cur))*molw_water
-            endif
-        enddo
+        ! The ODE solution is authoritative.  Never resurrect water from grida:
+        ! grida is mutated during provisional DVODE RHS evaluations and is not
+        ! itself the accepted ODE state.  Keep the duplicate BMM warm state
+        ! explicitly synchronised; this is redundant with current full_moving
+        ! BMM, but also keeps the older BMM subtree consistent.
+        where (parcel1%y(1:parcel1%n_bin_modew) < 0._wp)
+            parcel1%y(1:parcel1%n_bin_modew)=0._wp
+        end where
+        parcel1%mbin(1:parcel1%n_bin_modew,n_comps+1)= &
+            parcel1%y(1:parcel1%n_bin_modew)
+        if (ice_flag.eq.1) then
+            parcel1%moments(1:parcel1%n_bin_modew,n_comps+4)= &
+                parcel1%npart(1:parcel1%n_bin_modew)* &
+                parcel1%y(1:parcel1%n_bin_modew)
+            parcel1%moments(1:parcel1%n_bin_modew,n_comps+5)= &
+                parcel1%npart(1:parcel1%n_bin_modew)* &
+                parcel1%y(1:parcel1%n_bin_modew)
+        endif
+
+        ! Rebuild the radial BDM state at the accepted end-of-step water masses.
+        call finalise_bdm_radial_state(parcel1%dt)
         
         ! break-out if flag has been set 
         if(parcel1%break_flag) exit
@@ -413,6 +428,65 @@
     
     
     end subroutine bdm_driver
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! Reconstruct the radial BDM state at the accepted parcel water masses.         !
+    ! DVODE may evaluate the RHS at provisional states and may interpolate to tout, !
+    ! so grida must not be assumed to contain the accepted end-of-step state.        !
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    subroutine finalise_bdm_radial_state(dt_step)
+        use numerics_type
+        implicit none
+        real(wp), intent(in) :: dt_step
+        integer(i4b) :: i
+        real(wp) :: deltaV, flux, radius, radiusold, water_old
+
+        do i=1,parcel1%n_bin_modew
+            grida(i)%c=grida(i)%cold
+            grida(i)%kp_cur=grida(i)%kp_cur_old
+            grida(i)%rad=grida(i)%rad_old
+            grida(i)%r=grida(i)%r_old
+            grida(i)%r05=grida(i)%r05_old
+            grida(i)%dr=grida(i)%dr_old
+            grida(i)%dr05=grida(i)%dr05_old
+            grida(i)%vol=grida(i)%vol_old
+
+            water_old=sum(grida(i)%c(1:grida(i)%kp_cur,1)* &
+                          grida(i)%vol(1:grida(i)%kp_cur))*molw_water
+            deltaV=(max(parcel1%y(i),0._wp)-water_old)/rhow
+
+            flux=0._wp
+            radius=grida(i)%rad
+            radiusold=radius
+            call move_boundary(grida(i)%kp,grida(i)%kp_cur,dt_step, &
+                radiusold,radius,grida(i)%r,grida(i)%r05,grida(i)%dr,grida(i)%dr05, &
+                grida(i)%vol,grida(i)%u,grida(i)%c,flux, &
+                grida(i)%rad_min,grida(i)%rad_max,grida(i)%mwsol,grida(i)%rhosol, &
+                deltaV)
+            grida(i)%rad=radius
+
+            select case (diffusion_type)
+            case(0)
+                grida(i)%d05(:)=grida(i)%d_coeff
+                grida(i)%d05(grida(i)%kp_cur:grida(i)%kp+1)=0._wp
+            case(1)
+                call diffusion_coefficient(grida(i)%kp_cur,n_comps+1, &
+                    grida(i)%c(1:grida(i)%kp_cur,1) / &
+                    max(sum(grida(i)%c(1:grida(i)%kp_cur,:),2),tiny(1._wp)), &
+                    grida(i)%t,d_self,param,compound, &
+                    grida(i)%d05(1:grida(i)%kp_cur))
+                grida(i)%d05(grida(i)%kp_cur:grida(i)%kp+1)=0._wp
+                grida(i)%d05(0)=grida(i)%d05(1)
+            case default
+                error stop 'BDM: invalid diffusion_type'
+            end select
+
+            call backward_euler(grida(i)%kp,grida(i)%kp_cur,dt_step, &
+                grida(i)%r,grida(i)%r05,grida(i)%u,grida(i)%d,grida(i)%d05, &
+                grida(i)%dr,grida(i)%dr05,grida(i)%c,grida(i)%cold,flux)
+        enddo
+    end subroutine finalise_bdm_radial_state
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -447,20 +521,25 @@
 
       ! calculate the diameter and radius
       nw(:)=mwat(:)/molw_water
-      rhoat(:)=mwat(:)/rhow+sum(mbin(:,1:n_comps)/rhobin(:,:),2)
-      rhoat(:)=(mwat(:)+sum(mbin(:,1:n_comps),2))/rhoat(:);
+      fac(:)=mwat(:)/rhow+sum(mbin(:,1:n_comps)/rhobin(:,:),2)
+      rhoat(:)=(mwat(:)+sum(mbin(:,1:n_comps),2))/max(fac(:),tiny(1._wp))
   
       ! wet diameter:
-      dw(:)=((mwat(:)+sum(mbin(:,1:n_comps),2))*6._wp/(pi*rhoat(:)))**(1._wp/3._wp)
+      dw(:)=((mwat(:)+sum(mbin(:,1:n_comps),2))*6._wp / &
+             (pi*max(rhoat(:),tiny(1._wp))))**(1._wp/3._wp)
   
       ! calculate surface tension
       sigma=surface_tension(t)
-        
-      !fac(:)=1._wp+max(sum(nso(:,:)*nubin(:,:),2)/nwo(:),0.1_wp)
-      
-      ! equilibrium rh over particle - nb rh_act set to zero if not root-finding
-      rh_eq(:)=exp(4._wp*molw_water*sigma/r_gas/t/rhoat(:)/dw(:))* &
-           (nwo(:))/(nwo(:)+sum(nso(:,:)*nubin(:,:),2) ) 
+
+      ! Outer-shell Raoult activity.  Empty numerical shells should not
+      ! produce 0/0 or NaNs; assigning zero activity there drives condensation
+      ! if the bin is populated and is ignored when npart is negligible.
+      fac(:)=nwo(:)+sum(nso(:,:)*nubin(:,:),2)
+      rh_eq(:)=0._wp
+      where (fac(:) > tiny(1._wp) .and. dw(:) > tiny(1._wp))
+          rh_eq(:)=exp(4._wp*molw_water*sigma/r_gas/t / &
+                       max(rhoat(:),tiny(1._wp))/dw(:))*nwo(:)/fac(:)
+      end where
        
        
 !       rh_eq(:)=exp(4._wp*molw_water*sigma/r_gas/t/rhoat(:)/dw(:))/ fac(:)
@@ -503,6 +582,7 @@
         real(wp) :: tstart, deltaV,flux,radius,radiusold
 
         integer(i4b) :: i, j,iloc, ipart, ipr, ite, irh, iz,iw
+        real(wp), dimension(neq) :: y_eval
 
         ipart=parcel1%n_bin_modew
         ipr=parcel1%ipr
@@ -515,6 +595,16 @@
         t=y(ite)
         p=y(ipr)
         w=y(iw)
+
+        ! Never modify DVODE's trial state inside the RHS.  Use a tiny positive
+        ! evaluation mass for thermodynamics when a finite-difference/Jacobian
+        ! trial crosses y=0.
+        y_eval=y
+        where (y(1:ipart) > 0._wp)
+            y_eval(1:ipart)=y(1:ipart)
+        elsewhere
+            y_eval(1:ipart)=1.e-30_wp
+        end where
         
         tstart=parcel1%tout-parcel1%dt ! starting time
     
@@ -529,7 +619,7 @@
         sl=svp_liq(t)*rh/(p-svp_liq(t)) ! saturation ratio
         sl=(sl*p/(1._wp+sl))/svp_liq(t)
         wv=eps1*rh*svp_liq(t) / (p-svp_liq(t)) ! vapour mixing ratio
-        wl=sum(parcel1%npart*y(1:ipart))             ! liquid mixing ratio
+        wl=sum(parcel1%npart*y_eval(1:ipart))        ! liquid mixing ratio
 
         ! calculate the moist gas constants and specific heats
         rm=ra+wv*rv
@@ -561,19 +651,22 @@
 !             deltaV=max(y(i)- &
 !                 sum(grida(i)%c(1:grida(i)%kp_cur,1)*grida(i)%vol(1:grida(i)%kp_cur))*molw_water &
 !                 ,-y(i))/rhow
-            deltaV=(y(i)- &
+            deltaV=(max(y(i),0._wp)- &
                 sum(grida(i)%c(1:grida(i)%kp_cur,1)*grida(i)%vol(1:grida(i)%kp_cur))*molw_water &
                 )/rhow
 			!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 			! shift radii and calculate the velocity of boundaries                       !
 			!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 			flux=0._wp
+            radius=grida(i)%rad
+            radiusold=radius
  			call move_boundary(grida(i)%kp,grida(i)%kp_cur,tt-tstart, &
  			    radiusold,radius,grida(i)%r,grida(i)%r05,grida(i)%dr,grida(i)%dr05, &
  			    grida(i)%vol,grida(i)%u,grida(i)%c,flux, &
  			    grida(i)%rad_min,grida(i)%rad_max, grida(i)%mwsol, grida(i)%rhosol, &
  			    deltaV)
             radiusold=radius
+            grida(i)%rad=radius
 			!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 
@@ -589,7 +682,8 @@
                     case(1)
                         call diffusion_coefficient(grida(i)%kp_cur,n_comps+1, &
                                 grida(i)%c(1:grida(i)%kp_cur,1) / &
-                                    sum(grida(i)%c(1:grida(i)%kp_cur,:),2), &
+                                    max(sum(grida(i)%c(1:grida(i)%kp_cur,:),2), &
+                                        tiny(1._wp)), &
                                 grida(i)%t, d_self, param, &
                                 compound, grida(i)%d05(1:grida(i)%kp_cur))
                                 
@@ -627,13 +721,13 @@
             case (0)
                 select case (koehler_shell_flag) 
                     case(0) ! standard koehler eq
-                        call koehler01(t,y(1:ipart),parcel1%mbin(:,1:n_comps), &
+                        call koehler01(t,y_eval(1:ipart),parcel1%mbin(:,1:n_comps), &
                            parcel1%rhobin(:,1:n_comps), parcel1%nubin(:,1:n_comps), &
                            parcel1%molwbin(:,1:n_comps),ipart, &
                            parcel1%rh_eq,parcel1%rhoat, parcel1%dw) 
                            
                     case(1) ! just use water in outer shell
-                        call koehler01_diff(t,abs(y(1:ipart)),parcel1%mbin(1:ipart,1:n_comps), &
+                        call koehler01_diff(t,y_eval(1:ipart),parcel1%mbin(1:ipart,1:n_comps), &
                            nwo,nso, &
                            parcel1%rhobin(1:ipart,1:n_comps), parcel1%nubin(1:ipart,1:n_comps), &
                            parcel1%molwbin(1:ipart,1:n_comps),ipart, &
@@ -644,7 +738,7 @@
                         stop
                 end select
             case (1)
-              call kkoehler01(t,y(1:ipart),parcel1%mbin(:,1:n_comps), &
+              call kkoehler01(t,y_eval(1:ipart),parcel1%mbin(:,1:n_comps), &
                    parcel1%rhobin(:,1:n_comps), parcel1%kappabin(:,1:n_comps), &
                    parcel1%molwbin(:,1:n_comps),ipart, &
                    parcel1%rh_eq,parcel1%rhoat, parcel1%dw)
@@ -660,7 +754,7 @@
             parcel1%rhoat,parcel1%dw,ipart)
         ! do not bother if number concentration too small
         do i=1,ipart
-            if(isnan(parcel1%da_dt(i))) then
+            if(isnan(parcel1%da_dt(i)).or.(parcel1%npart(i).le.1.e-9_wp)) then
               parcel1%da_dt(i)=0._wp
             endif
 !             if(isnan(parcel1%da_dt(i)).or.(parcel1%npart(i).le. 1.e-9_wp)) then
@@ -675,6 +769,16 @@
         
         ! mass growth rate
         ydot(1:ipart)=pi*parcel1%rhoat*parcel1%dw**2 * parcel1%da_dt
+
+        ! Keep y=0 as an absorbing evaporation boundary during one DVODE call.
+        ! The fixed mbin water mass identifies bins that START this external
+        ! step dry, which avoids a discontinuous finite-difference Jacobian at
+        ! y=0 while still allowing positive condensation/reactivation.
+        where ((parcel1%mbin(1:ipart,n_comps+1) <= 0._wp .or. &
+                y(1:ipart) <= 0._wp) .and. ydot(1:ipart) < 0._wp)
+            ydot(1:ipart)=0._wp
+        end where
+
         ! change in vapour content
         drv = -sum(ydot(1:ipart)*parcel1%npart)
         if((.not. adiabatic_prof) .and. (.not. vert_ent)) then ! entraining?
