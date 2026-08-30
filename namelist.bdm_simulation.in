@@ -8,7 +8,7 @@
 
     ! The reference bdm_simulation.png is the constant-diffusivity test.
     ! nmd%d_coeff is read from mbd/namelist.in (currently 1.e-17 m2 s-1).
-    diffusion_type = 0,
+    diffusion_type = 1,
 
     ! 0: equilibrium from particle-average water activity
     ! 1: equilibrium from the water activity in the outermost shell
