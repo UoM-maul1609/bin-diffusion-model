@@ -288,9 +288,10 @@
     real(wp) :: flux,deltaV, radius, radiusold, t_tstep
     
     
-    ! reduce tolerances for this model:
-    parcel1%rtol=1.e-6_wp
-    parcel1%atol(1:parcel1%n_bin_modew)=1.e-30_wp
+    ! Keep the BMM/DVODE tolerances selected by initialise_bmm_arrays.
+    ! BDM used to tighten these to rtol=1e-6 and water atol=1e-30 kg,
+    ! which is unnecessarily severe for the parcel-water ODE and can force
+    ! DVODE to take O(1e4) internal steps near evaporation/reactivation.
     
     
     
@@ -537,8 +538,12 @@
       fac(:)=nwo(:)+sum(nso(:,:)*nubin(:,:),2)
       rh_eq(:)=0._wp
       where (fac(:) > tiny(1._wp) .and. dw(:) > tiny(1._wp))
+          ! Use safe denominators even inside WHERE.  Fortran processors may
+          ! evaluate a vector RHS for masked-out elements, so bare /dw and
+          ! /fac can still raise IEEE divide-by-zero/invalid flags.
           rh_eq(:)=exp(4._wp*molw_water*sigma/r_gas/t / &
-                       max(rhoat(:),tiny(1._wp))/dw(:))*nwo(:)/fac(:)
+                       max(rhoat(:),tiny(1._wp))/max(dw(:),tiny(1._wp))) * &
+                       nwo(:)/max(fac(:),tiny(1._wp))
       end where
        
        
@@ -620,6 +625,11 @@
         sl=(sl*p/(1._wp+sl))/svp_liq(t)
         wv=eps1*rh*svp_liq(t) / (p-svp_liq(t)) ! vapour mixing ratio
         wl=sum(parcel1%npart*y_eval(1:ipart))        ! liquid mixing ratio
+        if (ice_flag == 1) then
+            wi=sum(parcel1%npartice*parcel1%yice(1:ipart))
+        else
+            wi=0._wp
+        endif
 
         ! calculate the moist gas constants and specific heats
         rm=ra+wv*rv
@@ -903,6 +913,11 @@
       if (nbinw /= size(grida)) &
           error stop 'BDM: BMM warm-bin count does not match radial-grid count'
 
+      ! DVODE may finish by interpolation and its last RHS evaluation need
+      ! not correspond to the accepted state at tout.  Reconstruct grida from
+      ! the accepted warm-water masses before using the radial profile for Koop.
+      call finalise_bdm_radial_state(dt)
+
       dn01=0._wp
       if (t <= ttr) then
           do k=1,nbinw
@@ -976,7 +991,9 @@
       enddo
 
       where ((m01 > 0._wp) .and. (npartice > 0._wp))
-          yice=m01/npartice
+          ! Keep the divisor safe even for masked-out elements; see the note in
+          ! koehler01_diff regarding vector evaluation of WHERE expressions.
+          yice=m01/max(npartice,tiny(1._wp))
       end where
 
       mbin2_ice(:,1:ncomps)=moments(nbinw+1:2*nbinw,1:ncomps) / &
