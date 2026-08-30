@@ -7,8 +7,10 @@
         implicit none
         logical(lgt), save :: initialise_ode=.true.
         integer(i4b) :: neq,itol=2,itask=1,istate=1,iopt=1,lrw,liw,mf=22,iout
-        real(wp), dimension(:), allocatable :: rpar
-        integer(i4b), dimension(:), allocatable :: ipar
+        !real(wp), dimension(:), allocatable :: rpar
+        !integer(i4b), dimension(:), allocatable :: ipar
+        real(wp), dimension(1) :: rpar
+        integer(i4b), dimension(1) :: ipar
         
         
         
@@ -88,9 +90,9 @@
                             rwork,lrw,iwork,liw,jac,mf,rpar,ipar)
             enddo
         else
-            do while (x .lt. x1)
+            do while (x .gt. x2)
                 istate=1
-                call dvode(fex,neq,y,x,x1,itol,rtol,atol,itask,istate,iopt, & 
+                call dvode(fex,neq,y,x,x2,itol,rtol,atol,itask,istate,iopt, & 
                             rwork,lrw,iwork,liw,jac,mf,rpar,ipar)   
             enddo        
         endif
